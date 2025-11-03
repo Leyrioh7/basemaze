@@ -8,7 +8,7 @@
   ],
   "rewrites": [
     { "source": "/", "destination": "/Build/index.html" },
-    { "source": "^/(.*)$", "destination": "/Build/$1" }
+    { "source": "^/(?!Build/)(.*)$", "destination": "/Build/$1" }
   ],
   "headers": [
     {
@@ -35,14 +35,46 @@
       ]
     },
     {
-      "source": "/Build/(.*)\\.data(\\.br|\\.gz)?",
+      "source": "/Build/(.*)\\.data\\.br",
+      "headers": [
+        { "key": "Content-Type", "value": "application/octet-stream" },
+        { "key": "Content-Encoding", "value": "br" },
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/Build/(.*)\\.data\\.gz",
+      "headers": [
+        { "key": "Content-Type", "value": "application/octet-stream" },
+        { "key": "Content-Encoding", "value": "gzip" },
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/Build/(.*)\\.data",
       "headers": [
         { "key": "Content-Type", "value": "application/octet-stream" },
         { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
       ]
     },
     {
-      "source": "/Build/(.*)\\.framework\\.js(\\.br|\\.gz)?",
+      "source": "/Build/(.*)\\.framework\\.js\\.br",
+      "headers": [
+        { "key": "Content-Type", "value": "application/javascript" },
+        { "key": "Content-Encoding", "value": "br" },
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/Build/(.*)\\.framework\\.js\\.gz",
+      "headers": [
+        { "key": "Content-Type", "value": "application/javascript" },
+        { "key": "Content-Encoding", "value": "gzip" },
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/Build/(.*)\\.framework\\.js",
       "headers": [
         { "key": "Content-Type", "value": "application/javascript" },
         { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
