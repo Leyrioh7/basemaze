@@ -7,15 +7,25 @@
     <title>Unity Web Player | PacTon_5.0</title>
     <link rel="shortcut icon" href="TemplateData/favicon.ico">
     <link rel="stylesheet" href="TemplateData/style.css">
+    <!-- Preload critical resources for faster loading -->
+    <link rel="preload" href="Build/WebGL.loader.js" as="script">
+    <link rel="preload" href="Build/WebGL.framework.js.unityweb" as="fetch" crossorigin>
+    <link rel="preload" href="Build/WebGL.data.unityweb" as="fetch" crossorigin>
+    <link rel="preload" href="Build/WebGL.wasm.unityweb" as="fetch" crossorigin>
+    <!-- DNS prefetch and preconnect for faster resource loading -->
+    <link rel="dns-prefetch" href="//vercel.app">
+    <link rel="preconnect" href="//vercel.app">
   </head>
   <body>
     <div id="unity-container" class="unity-desktop">
       <canvas id="unity-canvas" width=1920 height=1080 tabindex="-1"></canvas>
       <div id="unity-loading-bar">
         <div id="unity-logo"></div>
+        <div id="unity-loading-text">Loading...</div>
         <div id="unity-progress-bar-empty">
           <div id="unity-progress-bar-full"></div>
         </div>
+        <div id="unity-progress-text">0%</div>
       </div>
       <div id="unity-warning"> </div>
       <div id="unity-footer">
@@ -104,32 +114,100 @@
         });
 
       } else {
-        // Desktop style: Render the game canvas in a window that can be maximized to fullscreen:
-        canvas.style.width = "1920px";
-        canvas.style.height = "1080px";
+        // Desktop style: Responsive canvas that maintains 16:9 aspect ratio
+        var targetWidth = 1920;
+        var targetHeight = 1080;
+        var aspectRatio = targetWidth / targetHeight;
+        
+        function resizeDesktopCanvas() {
+          var container = document.querySelector("#unity-container");
+          var containerWidth = window.innerWidth;
+          var containerHeight = window.innerHeight;
+          
+          // Calculate dimensions maintaining aspect ratio
+          var newWidth = containerWidth;
+          var newHeight = containerWidth / aspectRatio;
+          
+          // If height exceeds viewport, scale based on height instead
+          if (newHeight > containerHeight) {
+            newHeight = containerHeight;
+            newWidth = containerHeight * aspectRatio;
+          }
+          
+          // Apply responsive sizing
+          canvas.style.width = newWidth + "px";
+          canvas.style.height = newHeight + "px";
+          canvas.setAttribute("width", Math.floor(newWidth));
+          canvas.setAttribute("height", Math.floor(newHeight));
+        }
+        
+        resizeDesktopCanvas();
+        window.addEventListener("resize", resizeDesktopCanvas);
       }
 
-      document.querySelector("#unity-loading-bar").style.display = "block";
+      // Show loader immediately
+      var loadingBar = document.querySelector("#unity-loading-bar");
+      var progressBar = document.querySelector("#unity-progress-bar-full");
+      var progressText = document.querySelector("#unity-progress-text");
+      var loadingText = document.querySelector("#unity-loading-text");
+      loadingBar.style.display = "block";
+      
+      // Show initial loading state
+      loadingText.textContent = "Initializing...";
+      progressText.textContent = "0%";
 
       var script = document.createElement("script");
       script.src = loaderUrl;
+      
+      // Track loading progress
+      var loadingStartTime = Date.now();
+      var showLoadingProgress = setInterval(function() {
+        var elapsed = Date.now() - loadingStartTime;
+        if (elapsed > 1000) {
+          loadingText.textContent = "Loading assets...";
+        }
+        if (elapsed > 3000) {
+          loadingText.textContent = "Preparing game...";
+        }
+      }, 500);
+      
       script.onload = () => {
+        clearInterval(showLoadingProgress);
+        loadingText.textContent = "Loading game...";
         createUnityInstance(canvas, config, (progress) => {
-          document.querySelector("#unity-progress-bar-full").style.width = 100 * progress + "%";
+          var percent = Math.floor(progress * 100);
+          progressBar.style.width = 100 * progress + "%";
+          progressText.textContent = percent + "%";
+          if (percent < 30) {
+            loadingText.textContent = "Downloading files...";
+          } else if (percent < 60) {
+            loadingText.textContent = "Loading assets...";
+          } else if (percent < 90) {
+            loadingText.textContent = "Initializing game...";
+          } else {
+            loadingText.textContent = "Almost ready...";
+          }
         }).then((unityInstance) => {
-          document.querySelector("#unity-loading-bar").style.display = "none";
+          loadingText.textContent = "Ready!";
+          progressText.textContent = "100%";
+          // Small delay to show 100% before hiding
+          setTimeout(() => {
+            loadingBar.style.display = "none";
+          }, 300);
           document.querySelector("#unity-fullscreen-button").onclick = () => {
             unityInstance.SetFullscreen(1);
           };
         }).catch((message) => {
+          clearInterval(showLoadingProgress);
           console.error("Unity initialization failed:", message);
-          document.querySelector("#unity-loading-bar").style.display = "none";
+          loadingBar.style.display = "none";
           unityShowBanner("Failed to load Unity WebGL content: " + message, "error");
         });
       };
       script.onerror = () => {
+        clearInterval(showLoadingProgress);
         console.error("Failed to load Unity loader script");
-        document.querySelector("#unity-loading-bar").style.display = "none";
+        loadingBar.style.display = "none";
         unityShowBanner("Failed to load Unity loader script. Please check your network connection.", "error");
       };
 
