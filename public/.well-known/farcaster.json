@@ -1,18 +1,20 @@
 {
+  "frame": {
+    "name": "Base Maze",
+    "version": "1",
+    "iconUrl": "https://basemazee.vercel.app/icon.png",
+    "homeUrl": "https://basemazee.vercel.app",
+    "imageUrl": "https://basemazee.vercel.app/image.png",
+    "splashImageUrl": "https://basemazee.vercel.app/splash.png",
+    "splashBackgroundColor": "#0f0b88",
+    "webhookUrl": "https://basemazee.vercel.app/api/webhook",
+    "subtitle": "PacMon on Base",
+    "description": "Experience Gaming like no other",
+    "primaryCategory": "games"
+  },
   "accountAssociation": {
     "header": "",
     "payload": "",
     "signature": ""
-  },
-  "frame": {
-    "version": "1",
-    "name": "Space Shooter Game",
-    "iconUrl": "https://i.imgur.com/7iOqIO.jpeg",
-    "homeUrl": "https://base-maze.vercel.app/",
-    "imageUrl": "https://i.imgur.com/gefTKV.jpeg",
-    "buttonTitle": "Play Game",
-    "splashImageUrl": "https://i.imgur.com/7ioOIO.jpeg",
-    "splashBackgroundColor": "#800080",
-    "webhookUrl": "https://base-maze.vercel.app/webhook"
   }
-} 
+}
