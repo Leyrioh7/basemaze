@@ -3,6 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes">
     <title>Unity Web Player | PacTon_5.0</title>
     <link rel="shortcut icon" href="TemplateData/favicon.ico">
     <link rel="stylesheet" href="TemplateData/style.css">
@@ -83,18 +84,24 @@
 
       if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
         // Mobile device style: fill the whole browser client area with the game canvas:
-
-        var meta = document.createElement('meta');
-        meta.name = 'viewport';
-        meta.content = 'width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes';
-        document.getElementsByTagName('head')[0].appendChild(meta);
         document.querySelector("#unity-container").className = "unity-mobile";
         canvas.className = "unity-mobile";
 
-        // To lower canvas resolution on mobile devices to gain some
-        // performance, uncomment the following line:
-        // config.devicePixelRatio = 1;
-
+        // Lower canvas resolution on mobile devices to gain performance and prevent crashes
+        config.devicePixelRatio = 1;
+        
+        // Set canvas size to match viewport on mobile
+        function resizeCanvas() {
+          canvas.style.width = "100%";
+          canvas.style.height = "100%";
+          canvas.setAttribute("width", window.innerWidth);
+          canvas.setAttribute("height", window.innerHeight);
+        }
+        resizeCanvas();
+        window.addEventListener("resize", resizeCanvas);
+        window.addEventListener("orientationchange", () => {
+          setTimeout(resizeCanvas, 100);
+        });
 
       } else {
         // Desktop style: Render the game canvas in a window that can be maximized to fullscreen:
@@ -109,16 +116,22 @@
       script.onload = () => {
         createUnityInstance(canvas, config, (progress) => {
           document.querySelector("#unity-progress-bar-full").style.width = 100 * progress + "%";
-              }).then((unityInstance) => {
-                document.querySelector("#unity-loading-bar").style.display = "none";
-                document.querySelector("#unity-fullscreen-button").onclick = () => {
-                  unityInstance.SetFullscreen(1);
-                };
-
-              }).catch((message) => {
-                alert(message);
-              });
-            };
+        }).then((unityInstance) => {
+          document.querySelector("#unity-loading-bar").style.display = "none";
+          document.querySelector("#unity-fullscreen-button").onclick = () => {
+            unityInstance.SetFullscreen(1);
+          };
+        }).catch((message) => {
+          console.error("Unity initialization failed:", message);
+          document.querySelector("#unity-loading-bar").style.display = "none";
+          unityShowBanner("Failed to load Unity WebGL content: " + message, "error");
+        });
+      };
+      script.onerror = () => {
+        console.error("Failed to load Unity loader script");
+        document.querySelector("#unity-loading-bar").style.display = "none";
+        unityShowBanner("Failed to load Unity loader script. Please check your network connection.", "error");
+      };
 
       document.body.appendChild(script);
 
