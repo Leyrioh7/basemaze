@@ -7,8 +7,7 @@
     }
   ],
   "rewrites": [
-    { "source": "/", "destination": "/Build/index.html" },
-    { "source": "^/(?!Build/)(.*)$", "destination": "/Build/$1" }
+    { "source": "/", "destination": "/Build/index.html" }
   ],
   "headers": [
     {
