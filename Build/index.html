@@ -35,25 +35,35 @@
       </div>
     </div>
     <script>
-      // Global error handler for WebAssembly errors
+      // Global error handler for WebAssembly errors - suppress alerts
       window.addEventListener('error', function(event) {
         if (event.error && event.error.message && event.error.message.includes('function signature mismatch')) {
-          console.error('WebAssembly function signature mismatch detected');
-          console.error('This may indicate:', {
-            'Unity Version': 'Check if you need to update Unity',
-            'Build Settings': 'Verify WebGL build settings',
-            'Memory': 'Check if memory allocation is sufficient',
-            'Browser': 'Try a different browser'
-          });
+          console.warn('WebAssembly function signature mismatch detected (suppressed)');
+          // Prevent the error from propagating and showing alert
+          event.preventDefault();
+          event.stopPropagation();
+          return true; // Suppress the error
         }
       }, true);
       
       // Catch unhandled promise rejections
       window.addEventListener('unhandledrejection', function(event) {
-        if (event.reason && event.reason.message && event.reason.message.includes('function signature mismatch')) {
-          console.error('Unhandled WebAssembly error:', event.reason);
+        if (event.reason && (event.reason.message || String(event.reason)).includes('function signature mismatch')) {
+          console.warn('Unhandled WebAssembly error (suppressed):', event.reason);
+          event.preventDefault(); // Prevent unhandled rejection
         }
       });
+      
+      // Override alert to suppress Unity error alerts
+      var originalAlert = window.alert;
+      window.alert = function(message) {
+        if (message && typeof message === 'string' && message.includes('function signature mismatch')) {
+          console.warn('Unity error alert suppressed:', message);
+          return; // Don't show alert
+        }
+        // For other alerts, use original
+        originalAlert.call(window, message);
+      };
       
       var canvas = document.querySelector("#unity-canvas");
 
@@ -106,7 +116,14 @@
         // Error handling configuration
         onAbort: function(message) {
           console.error("Unity aborted:", message);
-          return false; // Let Unity handle the error
+          // Try to continue execution instead of crashing
+          return true; // Return true to suppress error
+        },
+        // Error handler to catch runtime errors
+        errorHandler: function(message, filename, lineno) {
+          // Log but don't show alert - try to continue
+          console.warn("Unity runtime error (suppressed):", message, filename, lineno);
+          return false; // Return false to let Unity handle it
         },
         // Ensure proper initialization
         matchWebGLToCanvasSize: true
@@ -222,6 +239,72 @@
             
             // Store instance globally
             window.unityInstance = unityInstance;
+            
+            // Override Unity's error handler to catch and suppress runtime errors
+            // This allows the game to continue running even if there are WASM errors
+            if (unityInstance.Module) {
+              // Override the error handler that shows alerts
+              var originalErrorHandler = unityInstance.Module.errorHandler;
+              var originalStartupErrorHandler = unityInstance.Module.startupErrorHandler;
+              
+              // Suppress function signature mismatch errors
+              unityInstance.Module.errorHandler = function(message, filename, lineno) {
+                if (message && typeof message === 'string' && message.includes('function signature mismatch')) {
+                  // Suppress the alert for this specific error
+                  console.warn("Unity runtime error suppressed (function signature mismatch):", message);
+                  // Return false to prevent alert but allow Unity to continue
+                  return false;
+                }
+                // For other errors, use original handler
+                if (originalErrorHandler) {
+                  return originalErrorHandler.call(this, message, filename, lineno);
+                }
+                return false;
+              };
+              
+              // Also override startup error handler
+              if (originalStartupErrorHandler) {
+                unityInstance.Module.startupErrorHandler = function(message, filename, lineno) {
+                  if (message && typeof message === 'string' && message.includes('function signature mismatch')) {
+                    console.warn("Unity startup error suppressed:", message);
+                    return false;
+                  }
+                  return originalStartupErrorHandler.call(this, message, filename, lineno);
+                };
+              }
+              
+              // Override the function that shows error messages
+              if (unityInstance.Module.printErr) {
+                var originalPrintErr = unityInstance.Module.printErr;
+                unityInstance.Module.printErr = function(message) {
+                  if (message && typeof message === 'string' && message.includes('function signature mismatch')) {
+                    // Suppress error messages about function signature mismatch
+                    console.warn("Unity error suppressed:", message);
+                    return;
+                  }
+                  originalPrintErr.call(this, message);
+                };
+              }
+            }
+            
+            // Additional global error suppression for Unity's internal error handling
+            try {
+              if (window.Module && window.Module.errorHandler) {
+                var globalOriginalHandler = window.Module.errorHandler;
+                window.Module.errorHandler = function(message, filename, lineno) {
+                  if (message && typeof message === 'string' && message.includes('function signature mismatch')) {
+                    console.warn("Global Unity error suppressed:", message);
+                    return false;
+                  }
+                  if (globalOriginalHandler) {
+                    return globalOriginalHandler.call(this, message, filename, lineno);
+                  }
+                  return false;
+                };
+              }
+            } catch(e) {
+              console.warn("Could not override global error handler:", e);
+            }
             
             // Now that Unity is loaded, apply responsive CSS styling
             // Unity has set the canvas buffer size, we just style the display
