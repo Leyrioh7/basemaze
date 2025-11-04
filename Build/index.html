@@ -76,9 +76,8 @@
         showBanner: unityShowBanner,
       };
 
-      // Disable automatic canvas size matching since we're handling it manually
-      // This prevents conflicts that can cause "null function or function signature mismatch" errors
-      config.matchWebGLToCanvasSize = false;
+      // Let Unity handle canvas sizing automatically to prevent function signature mismatches
+      // We'll use CSS for responsive display while Unity manages the actual buffer size
 
       // If you would like all file writes inside Unity Application.persistentDataPath
       // directory to automatically persist so that the contents are remembered when
@@ -97,58 +96,17 @@
         // Lower canvas resolution on mobile devices to gain performance and prevent crashes
         config.devicePixelRatio = 1;
         
-        // Set canvas size to match viewport on mobile
-        function resizeCanvas() {
-          var width = window.innerWidth;
-          var height = window.innerHeight;
-          canvas.style.width = "100%";
-          canvas.style.height = "100%";
-          canvas.setAttribute("width", width);
-          canvas.setAttribute("height", height);
-          // Only update Unity if it's already loaded
-          if (window.unityInstance && window.unityInstance.SetFullscreen) {
-            // Unity will handle resize automatically with matchWebGLToCanvasSize = false
-          }
-        }
-        resizeCanvas();
-        // Delay resize listeners until after Unity loads to prevent conflicts
-        setTimeout(() => {
-          window.addEventListener("resize", resizeCanvas);
-          window.addEventListener("orientationchange", () => {
-            setTimeout(resizeCanvas, 100);
-          });
-        }, 100);
+        // Set initial canvas size - Unity will handle resizing automatically
+        // Use CSS for display, Unity manages the actual buffer
+        canvas.style.width = "100%";
+        canvas.style.height = "100%";
 
       } else {
-        // Desktop style: Responsive canvas that maintains 16:9 aspect ratio
-        var targetWidth = 1920;
-        var targetHeight = 1080;
-        var aspectRatio = targetWidth / targetHeight;
-        
-        function resizeDesktopCanvas() {
-          var container = document.querySelector("#unity-container");
-          var containerWidth = window.innerWidth;
-          var containerHeight = window.innerHeight;
-          
-          // Calculate dimensions maintaining aspect ratio
-          var newWidth = containerWidth;
-          var newHeight = containerWidth / aspectRatio;
-          
-          // If height exceeds viewport, scale based on height instead
-          if (newHeight > containerHeight) {
-            newHeight = containerHeight;
-            newWidth = containerHeight * aspectRatio;
-          }
-          
-          // Apply responsive sizing
-          canvas.style.width = newWidth + "px";
-          canvas.style.height = newHeight + "px";
-          canvas.setAttribute("width", Math.floor(newWidth));
-          canvas.setAttribute("height", Math.floor(newHeight));
-        }
-        
-        resizeDesktopCanvas();
-        window.addEventListener("resize", resizeDesktopCanvas);
+        // Desktop style: Set initial canvas size, let Unity handle the rest
+        // CSS will handle responsive display through the container
+        canvas.style.width = "100%";
+        canvas.style.maxWidth = "1920px";
+        canvas.style.height = "auto";
       }
 
       // Show loader immediately
@@ -219,26 +177,8 @@
               unityInstance.SetFullscreen(1);
             };
             
-            // Re-enable resize handlers after Unity is loaded
-            if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-              // Mobile resize is already handled
-            } else {
-              // Desktop: Update Unity when window resizes
-              var resizeTimeout;
-              window.addEventListener("resize", () => {
-                clearTimeout(resizeTimeout);
-                resizeTimeout = setTimeout(() => {
-                  if (window.unityInstance && window.unityInstance.SendMessage) {
-                    try {
-                      // Notify Unity of resize if needed
-                      resizeDesktopCanvas();
-                    } catch(e) {
-                      console.warn("Resize notification failed:", e);
-                    }
-                  }
-                }, 250);
-              });
-            }
+            // Unity handles canvas resizing automatically
+            // No manual resize handlers needed to prevent conflicts
           }).catch((message) => {
             clearInterval(showLoadingProgress);
             console.error("Unity initialization failed:", message);
