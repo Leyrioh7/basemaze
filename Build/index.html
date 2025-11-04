@@ -35,6 +35,26 @@
       </div>
     </div>
     <script>
+      // Global error handler for WebAssembly errors
+      window.addEventListener('error', function(event) {
+        if (event.error && event.error.message && event.error.message.includes('function signature mismatch')) {
+          console.error('WebAssembly function signature mismatch detected');
+          console.error('This may indicate:', {
+            'Unity Version': 'Check if you need to update Unity',
+            'Build Settings': 'Verify WebGL build settings',
+            'Memory': 'Check if memory allocation is sufficient',
+            'Browser': 'Try a different browser'
+          });
+        }
+      }, true);
+      
+      // Catch unhandled promise rejections
+      window.addEventListener('unhandledrejection', function(event) {
+        if (event.reason && event.reason.message && event.reason.message.includes('function signature mismatch')) {
+          console.error('Unhandled WebAssembly error:', event.reason);
+        }
+      });
+      
       var canvas = document.querySelector("#unity-canvas");
 
       // Shows a temporary message banner/ribbon for a few seconds, or
@@ -74,12 +94,22 @@
         productName: "PacTon_5.0",
         productVersion: "1.11",
         showBanner: unityShowBanner,
-        // Memory configuration to prevent issues
+        // WebGL context configuration
         webglContextAttributes: {
           preserveDrawingBuffer: false,
           powerPreference: "high-performance",
-          failIfMajorPerformanceCaveat: false
-        }
+          failIfMajorPerformanceCaveat: false,
+          antialias: true,
+          depth: true,
+          stencil: false
+        },
+        // Error handling configuration
+        onAbort: function(message) {
+          console.error("Unity aborted:", message);
+          return false; // Let Unity handle the error
+        },
+        // Ensure proper initialization
+        matchWebGLToCanvasSize: true
       };
 
       // Let Unity handle canvas sizing automatically to prevent function signature mismatches
@@ -146,10 +176,19 @@
           return;
         }
         
+        // Ensure canvas has default size before Unity initializes
+        // Unity needs a valid canvas size to properly initialize
+        if (!canvas.width || !canvas.height) {
+          // Set default size that Unity can work with
+          canvas.width = 960;
+          canvas.height = 540;
+        }
+        
         // Wait a frame to ensure DOM is fully ready
         requestAnimationFrame(() => {
           try {
-            createUnityInstance(canvas, config, (progress) => {
+            // Wrap in try-catch with detailed error handling
+            var unityPromise = createUnityInstance(canvas, config, (progress) => {
               var percent = Math.floor(progress * 100);
               progressBar.style.width = 100 * progress + "%";
               progressText.textContent = percent + "%";
@@ -162,7 +201,18 @@
               } else {
                 loadingText.textContent = "Almost ready...";
               }
-            }).then((unityInstance) => {
+            });
+            
+            // Add error interception before the promise chain
+            unityPromise.catch((error) => {
+              // Log detailed error information
+              console.error("Unity promise error:", error);
+              if (error && error.stack) {
+                console.error("Error stack:", error.stack);
+              }
+            });
+            
+            unityPromise.then((unityInstance) => {
             loadingText.textContent = "Ready!";
             progressText.textContent = "100%";
             // Small delay to show 100% before hiding
