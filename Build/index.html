@@ -76,12 +76,9 @@
         showBanner: unityShowBanner,
       };
 
-      // By default, Unity keeps WebGL canvas render target size matched with
-      // the DOM size of the canvas element (scaled by window.devicePixelRatio)
-      // Set this to false if you want to decouple this synchronization from
-      // happening inside the engine, and you would instead like to size up
-      // the canvas DOM size and WebGL render target sizes yourself.
-      // config.matchWebGLToCanvasSize = false;
+      // Disable automatic canvas size matching since we're handling it manually
+      // This prevents conflicts that can cause "null function or function signature mismatch" errors
+      config.matchWebGLToCanvasSize = false;
 
       // If you would like all file writes inside Unity Application.persistentDataPath
       // directory to automatically persist so that the contents are remembered when
@@ -102,16 +99,25 @@
         
         // Set canvas size to match viewport on mobile
         function resizeCanvas() {
+          var width = window.innerWidth;
+          var height = window.innerHeight;
           canvas.style.width = "100%";
           canvas.style.height = "100%";
-          canvas.setAttribute("width", window.innerWidth);
-          canvas.setAttribute("height", window.innerHeight);
+          canvas.setAttribute("width", width);
+          canvas.setAttribute("height", height);
+          // Only update Unity if it's already loaded
+          if (window.unityInstance && window.unityInstance.SetFullscreen) {
+            // Unity will handle resize automatically with matchWebGLToCanvasSize = false
+          }
         }
         resizeCanvas();
-        window.addEventListener("resize", resizeCanvas);
-        window.addEventListener("orientationchange", () => {
-          setTimeout(resizeCanvas, 100);
-        });
+        // Delay resize listeners until after Unity loads to prevent conflicts
+        setTimeout(() => {
+          window.addEventListener("resize", resizeCanvas);
+          window.addEventListener("orientationchange", () => {
+            setTimeout(resizeCanvas, 100);
+          });
+        }, 100);
 
       } else {
         // Desktop style: Responsive canvas that maintains 16:9 aspect ratio
@@ -174,35 +180,78 @@
       script.onload = () => {
         clearInterval(showLoadingProgress);
         loadingText.textContent = "Loading game...";
-        createUnityInstance(canvas, config, (progress) => {
-          var percent = Math.floor(progress * 100);
-          progressBar.style.width = 100 * progress + "%";
-          progressText.textContent = percent + "%";
-          if (percent < 30) {
-            loadingText.textContent = "Downloading files...";
-          } else if (percent < 60) {
-            loadingText.textContent = "Loading assets...";
-          } else if (percent < 90) {
-            loadingText.textContent = "Initializing game...";
-          } else {
-            loadingText.textContent = "Almost ready...";
-          }
-        }).then((unityInstance) => {
-          loadingText.textContent = "Ready!";
-          progressText.textContent = "100%";
-          // Small delay to show 100% before hiding
-          setTimeout(() => {
-            loadingBar.style.display = "none";
-          }, 300);
-          document.querySelector("#unity-fullscreen-button").onclick = () => {
-            unityInstance.SetFullscreen(1);
-          };
-        }).catch((message) => {
-          clearInterval(showLoadingProgress);
-          console.error("Unity initialization failed:", message);
+        
+        // Ensure canvas is properly initialized before Unity starts
+        // This prevents signature mismatch errors
+        if (!canvas.width || !canvas.height) {
+          console.error("Canvas not properly initialized");
           loadingBar.style.display = "none";
-          unityShowBanner("Failed to load Unity WebGL content: " + message, "error");
-        });
+          unityShowBanner("Canvas initialization failed. Please refresh the page.", "error");
+          return;
+        }
+        
+        try {
+          createUnityInstance(canvas, config, (progress) => {
+            var percent = Math.floor(progress * 100);
+            progressBar.style.width = 100 * progress + "%";
+            progressText.textContent = percent + "%";
+            if (percent < 30) {
+              loadingText.textContent = "Downloading files...";
+            } else if (percent < 60) {
+              loadingText.textContent = "Loading assets...";
+            } else if (percent < 90) {
+              loadingText.textContent = "Initializing game...";
+            } else {
+              loadingText.textContent = "Almost ready...";
+            }
+          }).then((unityInstance) => {
+            loadingText.textContent = "Ready!";
+            progressText.textContent = "100%";
+            // Small delay to show 100% before hiding
+            setTimeout(() => {
+              loadingBar.style.display = "none";
+            }, 300);
+            
+            // Store instance globally for resize handling
+            window.unityInstance = unityInstance;
+            
+            document.querySelector("#unity-fullscreen-button").onclick = () => {
+              unityInstance.SetFullscreen(1);
+            };
+            
+            // Re-enable resize handlers after Unity is loaded
+            if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+              // Mobile resize is already handled
+            } else {
+              // Desktop: Update Unity when window resizes
+              var resizeTimeout;
+              window.addEventListener("resize", () => {
+                clearTimeout(resizeTimeout);
+                resizeTimeout = setTimeout(() => {
+                  if (window.unityInstance && window.unityInstance.SendMessage) {
+                    try {
+                      // Notify Unity of resize if needed
+                      resizeDesktopCanvas();
+                    } catch(e) {
+                      console.warn("Resize notification failed:", e);
+                    }
+                  }
+                }, 250);
+              });
+            }
+          }).catch((message) => {
+            clearInterval(showLoadingProgress);
+            console.error("Unity initialization failed:", message);
+            loadingBar.style.display = "none";
+            var errorMsg = typeof message === 'string' ? message : "Unknown error occurred";
+            unityShowBanner("Failed to load Unity WebGL content: " + errorMsg + ". Please try refreshing the page.", "error");
+          });
+        } catch(error) {
+          clearInterval(showLoadingProgress);
+          console.error("Error creating Unity instance:", error);
+          loadingBar.style.display = "none";
+          unityShowBanner("Error initializing Unity: " + error.message + ". Please try refreshing the page.", "error");
+        }
       };
       script.onerror = () => {
         clearInterval(showLoadingProgress);
