@@ -18,7 +18,7 @@
   </head>
   <body>
     <div id="unity-container" class="unity-desktop">
-      <canvas id="unity-canvas" width=1920 height=1080 tabindex="-1"></canvas>
+      <canvas id="unity-canvas" tabindex="-1"></canvas>
       <div id="unity-loading-bar">
         <div id="unity-logo"></div>
         <div id="unity-loading-text">Loading...</div>
@@ -74,6 +74,12 @@
         productName: "PacTon_5.0",
         productVersion: "1.11",
         showBanner: unityShowBanner,
+        // Memory configuration to prevent issues
+        webglContextAttributes: {
+          preserveDrawingBuffer: false,
+          powerPreference: "high-performance",
+          failIfMajorPerformanceCaveat: false
+        }
       };
 
       // Let Unity handle canvas sizing automatically to prevent function signature mismatches
@@ -88,6 +94,8 @@
       // JS_FileSystem_Sync() behavior, but in future Unity version, this will be
       // expected to change.
 
+      // Don't modify canvas before Unity loads - let Unity set it up first
+      // We'll apply responsive styling after Unity initializes
       if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
         // Mobile device style: fill the whole browser client area with the game canvas:
         document.querySelector("#unity-container").className = "unity-mobile";
@@ -95,18 +103,9 @@
 
         // Lower canvas resolution on mobile devices to gain performance and prevent crashes
         config.devicePixelRatio = 1;
-        
-        // Set initial canvas size - Unity will handle resizing automatically
-        // Use CSS for display, Unity manages the actual buffer
-        canvas.style.width = "100%";
-        canvas.style.height = "100%";
-
       } else {
-        // Desktop style: Set initial canvas size, let Unity handle the rest
-        // CSS will handle responsive display through the container
-        canvas.style.width = "100%";
-        canvas.style.maxWidth = "1920px";
-        canvas.style.height = "auto";
+        // Desktop: Unity will set canvas size, we'll make it responsive via CSS after load
+        document.querySelector("#unity-container").className = "unity-desktop";
       }
 
       // Show loader immediately
@@ -139,30 +138,31 @@
         clearInterval(showLoadingProgress);
         loadingText.textContent = "Loading game...";
         
-        // Ensure canvas is properly initialized before Unity starts
-        // This prevents signature mismatch errors
-        if (!canvas.width || !canvas.height) {
-          console.error("Canvas not properly initialized");
+        // Ensure canvas exists and is ready
+        if (!canvas || !canvas.getContext) {
+          console.error("Canvas not available");
           loadingBar.style.display = "none";
-          unityShowBanner("Canvas initialization failed. Please refresh the page.", "error");
+          unityShowBanner("Canvas not available. Please refresh the page.", "error");
           return;
         }
         
-        try {
-          createUnityInstance(canvas, config, (progress) => {
-            var percent = Math.floor(progress * 100);
-            progressBar.style.width = 100 * progress + "%";
-            progressText.textContent = percent + "%";
-            if (percent < 30) {
-              loadingText.textContent = "Downloading files...";
-            } else if (percent < 60) {
-              loadingText.textContent = "Loading assets...";
-            } else if (percent < 90) {
-              loadingText.textContent = "Initializing game...";
-            } else {
-              loadingText.textContent = "Almost ready...";
-            }
-          }).then((unityInstance) => {
+        // Wait a frame to ensure DOM is fully ready
+        requestAnimationFrame(() => {
+          try {
+            createUnityInstance(canvas, config, (progress) => {
+              var percent = Math.floor(progress * 100);
+              progressBar.style.width = 100 * progress + "%";
+              progressText.textContent = percent + "%";
+              if (percent < 30) {
+                loadingText.textContent = "Downloading files...";
+              } else if (percent < 60) {
+                loadingText.textContent = "Loading assets...";
+              } else if (percent < 90) {
+                loadingText.textContent = "Initializing game...";
+              } else {
+                loadingText.textContent = "Almost ready...";
+              }
+            }).then((unityInstance) => {
             loadingText.textContent = "Ready!";
             progressText.textContent = "100%";
             // Small delay to show 100% before hiding
@@ -170,28 +170,37 @@
               loadingBar.style.display = "none";
             }, 300);
             
-            // Store instance globally for resize handling
+            // Store instance globally
             window.unityInstance = unityInstance;
             
-            document.querySelector("#unity-fullscreen-button").onclick = () => {
-              unityInstance.SetFullscreen(1);
-            };
+            // Now that Unity is loaded, apply responsive CSS styling
+            // Unity has set the canvas buffer size, we just style the display
+            if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+              // Mobile: already handled by CSS
+            } else {
+              // Desktop: make canvas responsive while preserving Unity's buffer
+              canvas.style.width = "100%";
+              canvas.style.maxWidth = "1920px";
+              canvas.style.height = "auto";
+            }
             
-            // Unity handles canvas resizing automatically
-            // No manual resize handlers needed to prevent conflicts
-          }).catch((message) => {
+              document.querySelector("#unity-fullscreen-button").onclick = () => {
+                unityInstance.SetFullscreen(1);
+              };
+            }).catch((message) => {
+              clearInterval(showLoadingProgress);
+              console.error("Unity initialization failed:", message);
+              loadingBar.style.display = "none";
+              var errorMsg = typeof message === 'string' ? message : "Unknown error occurred";
+              unityShowBanner("Failed to load Unity WebGL content: " + errorMsg + ". Please try refreshing the page.", "error");
+            });
+          } catch(error) {
             clearInterval(showLoadingProgress);
-            console.error("Unity initialization failed:", message);
+            console.error("Error creating Unity instance:", error);
             loadingBar.style.display = "none";
-            var errorMsg = typeof message === 'string' ? message : "Unknown error occurred";
-            unityShowBanner("Failed to load Unity WebGL content: " + errorMsg + ". Please try refreshing the page.", "error");
-          });
-        } catch(error) {
-          clearInterval(showLoadingProgress);
-          console.error("Error creating Unity instance:", error);
-          loadingBar.style.display = "none";
-          unityShowBanner("Error initializing Unity: " + error.message + ". Please try refreshing the page.", "error");
-        }
+            unityShowBanner("Error initializing Unity: " + error.message + ". Please try refreshing the page.", "error");
+          }
+        });
       };
       script.onerror = () => {
         clearInterval(showLoadingProgress);
