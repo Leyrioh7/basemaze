@@ -1,15 +1,20 @@
 {
   "version": 2,
   "builds": [
-    {
-      "src": "Build/**",
-      "use": "@vercel/static"
-    }
+    { "src": "Build/**", "use": "@vercel/static" }
   ],
   "rewrites": [
+    { "source": "/.well-known/:path*", "destination": "/.well-known/:path*" },
     { "source": "/", "destination": "/Build/index.html" }
   ],
   "headers": [
+    {
+      "source": "/.well-known/farcaster.json",
+      "headers": [
+        { "key": "Content-Type", "value": "application/json" },
+        { "key": "Cache-Control", "value": "public, max-age=60" }
+      ]
+    },
     {
       "source": "/Build/WebGL\\.wasm\\.unityweb",
       "headers": [
