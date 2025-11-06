@@ -1,17 +1,9 @@
 {
-  "frame": {
-    "name": "Base Maze",
-    "version": "1",
-    "iconUrl": "https://basemazee.vercel.app/icon.png",
-    "homeUrl": "https://basemazee.vercel.app",
-    "imageUrl": "https://basemazee.vercel.app/image.png",
-    "splashImageUrl": "https://basemazee.vercel.app/splash.png",
-    "splashBackgroundColor": "#0f0b88",
-    "webhookUrl": "https://basemazee.vercel.app/api/webhook",
-    "subtitle": "PacMon on Base",
-    "description": "Experience Gaming like no other",
-    "primaryCategory": "games"
-  },
+  "name": "Base Maze",
+  "description": "Experience gaming like no other — PacMon on Base.",
+  "url": "https://basemazee.vercel.app",
+  "icon": "https://basemazee.vercel.app/icon.png",
+  "redirect": "https://basemazee.vercel.app",
   "accountAssociation": {
     "header": "",
     "payload": "",
