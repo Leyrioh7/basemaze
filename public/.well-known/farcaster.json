@@ -1,12 +1,6 @@
 {
-  "name": "Base Maze",
-  "description": "Experience gaming like no other — PacMon on Base.",
-  "url": "https://basemazee.vercel.app",
+  "name": "Basemaze",
+  "description": "A fun onchain Unity WebGL arcade maze game built for Farcaster on Base.",
   "icon": "https://basemazee.vercel.app/icon.png",
-  "redirect": "https://basemazee.vercel.app",
-  "accountAssociation": {
-    "header": "",
-    "payload": "",
-    "signature": ""
-  }
+  "url": "https://basemazee.vercel.app"
 }
