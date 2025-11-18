@@ -1,0 +1,5 @@
+{
+  "scripts": {
+    "build": "unity-build-script-here && mkdir -p Build/.well-known && cp public/.well-known/farcaster.json Build/.well-known/farcaster.json"
+  }
+}

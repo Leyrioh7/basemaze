@@ -1,0 +1,18 @@
+{
+  "accountAssociation": {
+    "header": "",
+    "payload": "",
+    "signature": ""
+  },
+  "frame": {
+    "version": "1",
+    "name": "Space Shooter Game",
+    "iconUrl": "https://i.imgur.com/7iOqIO.jpeg",
+    "homeUrl": "https://base-maze.vercel.app/",
+    "imageUrl": "https://i.imgur.com/gefTKV.jpeg",
+    "buttonTitle": "Play Game",
+    "splashImageUrl": "https://i.imgur.com/7ioOIO.jpeg",
+    "splashBackgroundColor": "#800080",
+    "webhookUrl": "https://base-maze.vercel.app/webhook"
+  }
+}

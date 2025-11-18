@@ -1,0 +1,21 @@
+{
+  "version": 2,
+  "public": true,
+  "builds": [
+    { "src": "Build/**", "use": "@vercel/static" },
+    { "src": "public/**", "use": "@vercel/static" }
+  ],
+  "routes": [
+    {
+      "src": "/\\.well-known/(.*)",
+      "dest": "/public/.well-known/$1",
+      "headers": {
+        "Cache-Control": "public, max-age=0, must-revalidate"
+      }
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/Build/$1"
+    }
+  ]
+}
