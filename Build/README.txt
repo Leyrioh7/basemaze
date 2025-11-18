@@ -1,1 +1,0 @@
-Place your Unity WebGL Build files here (index.html, *.wasm, *.js, etc).
