@@ -1,18 +1,20 @@
 {
-  "accountAssociation": {
-    "header": "",
-    "payload": "",
-    "signature": ""
+"accountAssociation": {
+    "header": "eyJmaWQiOjMyOTM3MCwidHlwZSI6ImN1c3RvZHkiLCJrZXkiOiIweDgxZUNlQjgzMDVlOTExODc4NjFBOTAyNzQ1OWRFM0M3RDY1MUJkNWYifQ",
+    "payload": "eyJkb21haW4iOiJiYXNlbWF6ZWUudmVyY2VsLmFwcCJ9",
+    "signature": "gOfDAoeaGwMYeTREu3m8Dslby+pNwY8ddjkHSQNQih1o1U0VIGbppIXBA7iDn7ch4wOdE2eF1+9PWthPzkXwKxs="
   },
   "frame": {
+    "name": "Base Maze",
     "version": "1",
-    "name": "Space Shooter Game",
-    "iconUrl": "https://i.imgur.com/7iOqIO.jpeg",
-    "homeUrl": "https://base-maze.vercel.app/",
-    "imageUrl": "https://i.imgur.com/gefTKV.jpeg",
-    "buttonTitle": "Play Game",
-    "splashImageUrl": "https://i.imgur.com/7ioOIO.jpeg",
-    "splashBackgroundColor": "#800080",
-    "webhookUrl": "https://base-maze.vercel.app/webhook"
+    "iconUrl": "https://i.imgur.com/29Rr04Y.jpeg",
+    "homeUrl": "https://basemazee.vercel.app",
+    "imageUrl": "https://i.imgur.com/29Rr04Y.jpeg",
+    "splashImageUrl": "https://i.imgur.com/29Rr04Y.jpeg",
+    "splashBackgroundColor": "#0f0b88",
+    "webhookUrl": "https://basemazee.vercel.app/api/webhook",
+    "subtitle": "PacMon on Base",
+    "description": "Experience Gaming like no other",
+    "primaryCategory": "games"
   }
 }

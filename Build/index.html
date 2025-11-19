@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes">
-    <title>Unity Web Player | PacTon_5.0</title>
+    <title>Unity Web Player | Basemaze</title>
     <link rel="shortcut icon" href="TemplateData/favicon.ico">
     <link rel="stylesheet" href="TemplateData/style.css">
     <!-- Preload critical resources for faster loading -->
@@ -15,6 +15,7 @@
     <!-- DNS prefetch and preconnect for faster resource loading -->
     <link rel="dns-prefetch" href="//vercel.app">
     <link rel="preconnect" href="//vercel.app">
+    <script src="ready.js"></script>
   </head>
   <body>
     <div id="unity-container" class="unity-desktop">
@@ -344,6 +345,49 @@
 
       document.body.appendChild(script);
 
+    </script>
+    <script type="module">
+  import { FarcasterSDK } from "https://farcaster.xyz/miniapps/sdk.js";
+
+  const sdk = new FarcasterSDK();
+
+  // Optional: helper to safely call ready if SDK exists
+  function callReady() {
+    try {
+      if (sdk && sdk.actions && typeof sdk.actions.ready === "function") {
+        sdk.actions.ready();
+        console.log("Farcaster: sdk.actions.ready() called");
+      } else {
+        console.warn("Farcaster SDK not ready or sdk.actions.ready not found");
+      }
+    } catch (err) {
+      console.error("Error calling Farcaster ready:", err);
+    }
+  }
+
+  // Existing Unity loader script should have createUnityInstance invocation.
+  // If your page currently calls createUnityInstance(...) directly, wrap it like this:
+  const canvas = document.querySelector("#unity-canvas");
+
+  // If your index.html already used createUnityInstance, use that Promise:
+  createUnityInstance(canvas, {
+    dataUrl: "Build/WebGL.data.unityweb",
+    frameworkUrl: "Build/WebGL.framework.js.unityweb",
+    codeUrl: "Build/WebGL.wasm.unityweb",
+    streamingAssetsUrl: "StreamingAssets",
+    companyName: "Basemaze",
+    productName: "Basemaze",
+    productVersion: "1.0"
+  }).then((unityInstance) => {
+    console.log("Unity loaded");
+    // Unity is ready — now tell Farcaster
+    callReady();
+  }).catch((message) => {
+    console.error("Failed to load Unity:", message);
+  });
+
+  // If for some reason Unity uses another load mechanism, call callReady()
+  // after whatever callback/event indicates Unity is ready.
     </script>
   </body>
 </html>
