@@ -16,6 +16,12 @@
     <link rel="dns-prefetch" href="//vercel.app">
     <link rel="preconnect" href="//vercel.app">
     <script src="ready.js"></script>
+
+    <!-- Farcaster SDK: SINGLE import used to notify when Unity is ready -->
+    <script type="module">
+      import { FarcasterSDK } from "https://farcaster.xyz/miniapps/sdk.js";
+      window.farcasterSDK = new FarcasterSDK();
+    </script>
   </head>
   <body>
     <div id="unity-container" class="unity-desktop">
@@ -35,45 +41,19 @@
         <div id="unity-build-title">Basemaze</div>
       </div>
     </div>
+
     <script>
-      // Global error handler for WebAssembly errors - suppress alerts
+      // Minimal and safe global error handlers (no aggressive suppression)
       window.addEventListener('error', function(event) {
-        if (event.error && event.error.message && event.error.message.includes('function signature mismatch')) {
-          console.warn('WebAssembly function signature mismatch detected (suppressed)');
-          // Prevent the error from propagating and showing alert
-          event.preventDefault();
-          event.stopPropagation();
-          return true; // Suppress the error
-        }
+        // Keep logging but avoid breaking execution
+        console.warn('Global error:', event.message);
       }, true);
-      
-      // Catch unhandled promise rejections
       window.addEventListener('unhandledrejection', function(event) {
-        if (event.reason && (event.reason.message || String(event.reason)).includes('function signature mismatch')) {
-          console.warn('Unhandled WebAssembly error (suppressed):', event.reason);
-          event.preventDefault(); // Prevent unhandled rejection
-        }
+        console.warn('Unhandled promise rejection:', event.reason);
       });
-      
-      // Override alert to suppress Unity error alerts
-      var originalAlert = window.alert;
-      window.alert = function(message) {
-        if (message && typeof message === 'string' && message.includes('function signature mismatch')) {
-          console.warn('Unity error alert suppressed:', message);
-          return; // Don't show alert
-        }
-        // For other alerts, use original
-        originalAlert.call(window, message);
-      };
-      
+
       var canvas = document.querySelector("#unity-canvas");
 
-      // Shows a temporary message banner/ribbon for a few seconds, or
-      // a permanent error message on top of the canvas if type=='error'.
-      // If type=='warning', a yellow highlight color is used.
-      // Modify or remove this function to customize the visually presented
-      // way that non-critical warnings and error messages are presented to the
-      // user.
       function unityShowBanner(msg, type) {
         var warningBanner = document.querySelector("#unity-warning");
         function updateBannerVisibility() {
@@ -105,7 +85,6 @@
         productName: "PacTon_5.0",
         productVersion: "1.11",
         showBanner: unityShowBanner,
-        // WebGL context configuration
         webglContextAttributes: {
           preserveDrawingBuffer: false,
           powerPreference: "high-performance",
@@ -114,63 +93,29 @@
           depth: true,
           stencil: false
         },
-        // Error handling configuration
-        onAbort: function(message) {
-          console.error("Unity aborted:", message);
-          // Try to continue execution instead of crashing
-          return true; // Return true to suppress error
-        },
-        // Error handler to catch runtime errors
-        errorHandler: function(message, filename, lineno) {
-          // Log but don't show alert - try to continue
-          console.warn("Unity runtime error (suppressed):", message, filename, lineno);
-          return false; // Return false to let Unity handle it
-        },
-        // Ensure proper initialization
         matchWebGLToCanvasSize: true
       };
 
-      // Let Unity handle canvas sizing automatically to prevent function signature mismatches
-      // We'll use CSS for responsive display while Unity manages the actual buffer size
-
-      // If you would like all file writes inside Unity Application.persistentDataPath
-      // directory to automatically persist so that the contents are remembered when
-      // the user revisits the site the next time, uncomment the following line:
-      // config.autoSyncPersistentDataPath = true;
-      // This autosyncing is currently not the default behavior to avoid regressing
-      // existing user projects that might rely on the earlier manual
-      // JS_FileSystem_Sync() behavior, but in future Unity version, this will be
-      // expected to change.
-
-      // Don't modify canvas before Unity loads - let Unity set it up first
-      // We'll apply responsive styling after Unity initializes
       if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-        // Mobile device style: fill the whole browser client area with the game canvas:
         document.querySelector("#unity-container").className = "unity-mobile";
         canvas.className = "unity-mobile";
-
-        // Lower canvas resolution on mobile devices to gain performance and prevent crashes
         config.devicePixelRatio = 1;
       } else {
-        // Desktop: Unity will set canvas size, we'll make it responsive via CSS after load
         document.querySelector("#unity-container").className = "unity-desktop";
       }
 
-      // Show loader immediately
       var loadingBar = document.querySelector("#unity-loading-bar");
       var progressBar = document.querySelector("#unity-progress-bar-full");
       var progressText = document.querySelector("#unity-progress-text");
       var loadingText = document.querySelector("#unity-loading-text");
       loadingBar.style.display = "block";
-      
-      // Show initial loading state
+
       loadingText.textContent = "Initializing...";
       progressText.textContent = "0%";
 
       var script = document.createElement("script");
       script.src = loaderUrl;
-      
-      // Track loading progress
+
       var loadingStartTime = Date.now();
       var showLoadingProgress = setInterval(function() {
         var elapsed = Date.now() - loadingStartTime;
@@ -181,31 +126,25 @@
           loadingText.textContent = "Preparing game...";
         }
       }, 500);
-      
+
       script.onload = () => {
         clearInterval(showLoadingProgress);
         loadingText.textContent = "Loading game...";
-        
-        // Ensure canvas exists and is ready
+
         if (!canvas || !canvas.getContext) {
           console.error("Canvas not available");
           loadingBar.style.display = "none";
           unityShowBanner("Canvas not available. Please refresh the page.", "error");
           return;
         }
-        
-        // Ensure canvas has default size before Unity initializes
-        // Unity needs a valid canvas size to properly initialize
+
         if (!canvas.width || !canvas.height) {
-          // Set default size that Unity can work with
           canvas.width = 960;
           canvas.height = 540;
         }
-        
-        // Wait a frame to ensure DOM is fully ready
+
         requestAnimationFrame(() => {
           try {
-            // Wrap in try-catch with detailed error handling
             var unityPromise = createUnityInstance(canvas, config, (progress) => {
               var percent = Math.floor(progress * 100);
               progressBar.style.width = 100 * progress + "%";
@@ -220,107 +159,43 @@
                 loadingText.textContent = "Almost ready...";
               }
             });
-            
-            // Add error interception before the promise chain
+
             unityPromise.catch((error) => {
-              // Log detailed error information
               console.error("Unity promise error:", error);
-              if (error && error.stack) {
-                console.error("Error stack:", error.stack);
-              }
             });
-            
+
             unityPromise.then((unityInstance) => {
-            loadingText.textContent = "Ready!";
-            progressText.textContent = "100%";
-            // Small delay to show 100% before hiding
-            setTimeout(() => {
-              loadingBar.style.display = "none";
-            }, 300);
-            
-            // Store instance globally
-            window.unityInstance = unityInstance;
-            
-            // Override Unity's error handler to catch and suppress runtime errors
-            // This allows the game to continue running even if there are WASM errors
-            if (unityInstance.Module) {
-              // Override the error handler that shows alerts
-              var originalErrorHandler = unityInstance.Module.errorHandler;
-              var originalStartupErrorHandler = unityInstance.Module.startupErrorHandler;
-              
-              // Suppress function signature mismatch errors
-              unityInstance.Module.errorHandler = function(message, filename, lineno) {
-                if (message && typeof message === 'string' && message.includes('function signature mismatch')) {
-                  // Suppress the alert for this specific error
-                  console.warn("Unity runtime error suppressed (function signature mismatch):", message);
-                  // Return false to prevent alert but allow Unity to continue
-                  return false;
+              loadingText.textContent = "Ready!";
+              progressText.textContent = "100%";
+              setTimeout(() => {
+                loadingBar.style.display = "none";
+              }, 300);
+
+              window.unityInstance = unityInstance;
+
+              // Safe hook: notify Farcaster SDK that Unity is ready
+              try {
+                if (window.farcasterSDK && window.farcasterSDK.actions && typeof window.farcasterSDK.actions.ready === 'function') {
+                  window.farcasterSDK.actions.ready();
+                  window.farcasterSDK.readySent = true;
+                  console.log('Farcaster SDK: ready() called after Unity loaded.');
+                } else {
+                  console.log('Farcaster SDK not available yet; will attempt fallback.');
                 }
-                // For other errors, use original handler
-                if (originalErrorHandler) {
-                  return originalErrorHandler.call(this, message, filename, lineno);
-                }
-                return false;
-              };
-              
-              // Also override startup error handler
-              if (originalStartupErrorHandler) {
-                unityInstance.Module.startupErrorHandler = function(message, filename, lineno) {
-                  if (message && typeof message === 'string' && message.includes('function signature mismatch')) {
-                    console.warn("Unity startup error suppressed:", message);
-                    return false;
-                  }
-                  return originalStartupErrorHandler.call(this, message, filename, lineno);
-                };
+              } catch (e) {
+                console.warn('Error calling Farcaster ready:', e);
               }
-              
-              // Override the function that shows error messages
-              if (unityInstance.Module.printErr) {
-                var originalPrintErr = unityInstance.Module.printErr;
-                unityInstance.Module.printErr = function(message) {
-                  if (message && typeof message === 'string' && message.includes('function signature mismatch')) {
-                    // Suppress error messages about function signature mismatch
-                    console.warn("Unity error suppressed:", message);
-                    return;
-                  }
-                  originalPrintErr.call(this, message);
-                };
-              }
-            }
-            
-            // Additional global error suppression for Unity's internal error handling
-            try {
-              if (window.Module && window.Module.errorHandler) {
-                var globalOriginalHandler = window.Module.errorHandler;
-                window.Module.errorHandler = function(message, filename, lineno) {
-                  if (message && typeof message === 'string' && message.includes('function signature mismatch')) {
-                    console.warn("Global Unity error suppressed:", message);
-                    return false;
-                  }
-                  if (globalOriginalHandler) {
-                    return globalOriginalHandler.call(this, message, filename, lineno);
-                  }
-                  return false;
-                };
-              }
-            } catch(e) {
-              console.warn("Could not override global error handler:", e);
-            }
-            
-            // Now that Unity is loaded, apply responsive CSS styling
-            // Unity has set the canvas buffer size, we just style the display
-            if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-              // Mobile: already handled by CSS
-            } else {
-              // Desktop: make canvas responsive while preserving Unity's buffer
-              canvas.style.width = "100%";
-              canvas.style.maxWidth = "1920px";
-              canvas.style.height = "auto";
-            }
-            
+
               document.querySelector("#unity-fullscreen-button").onclick = () => {
                 unityInstance.SetFullscreen(1);
               };
+
+              // Make canvas responsive
+              if (!/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+                canvas.style.width = "100%";
+                canvas.style.maxWidth = "1920px";
+                canvas.style.height = "auto";
+              }
             }).catch((message) => {
               clearInterval(showLoadingProgress);
               console.error("Unity initialization failed:", message);
@@ -336,6 +211,7 @@
           }
         });
       };
+
       script.onerror = () => {
         clearInterval(showLoadingProgress);
         console.error("Failed to load Unity loader script");
@@ -345,49 +221,20 @@
 
       document.body.appendChild(script);
 
+      // Fallback: periodically try to notify Farcaster SDK if it wasn't available at load time
+      var farcasterFallbackInterval = setInterval(function() {
+        try {
+          if (window.farcasterSDK && window.farcasterSDK.actions && typeof window.farcasterSDK.actions.ready === 'function' && !window.farcasterSDK.readySent) {
+            window.farcasterSDK.actions.ready();
+            window.farcasterSDK.readySent = true;
+            console.log('Farcaster SDK: ready() called from fallback.');
+            clearInterval(farcasterFallbackInterval);
+          }
+        } catch (e) {
+          // ignore
+        }
+      }, 500);
     </script>
-    <script type="module">
-  import { FarcasterSDK } from "https://farcaster.xyz/miniapps/sdk.js";
 
-  const sdk = new FarcasterSDK();
-
-  // Optional: helper to safely call ready if SDK exists
-  function callReady() {
-    try {
-      if (sdk && sdk.actions && typeof sdk.actions.ready === "function") {
-        sdk.actions.ready();
-        console.log("Farcaster: sdk.actions.ready() called");
-      } else {
-        console.warn("Farcaster SDK not ready or sdk.actions.ready not found");
-      }
-    } catch (err) {
-      console.error("Error calling Farcaster ready:", err);
-    }
-  }
-
-  // Existing Unity loader script should have createUnityInstance invocation.
-  // If your page currently calls createUnityInstance(...) directly, wrap it like this:
-  const canvas = document.querySelector("#unity-canvas");
-
-  // If your index.html already used createUnityInstance, use that Promise:
-  createUnityInstance(canvas, {
-    dataUrl: "Build/WebGL.data.unityweb",
-    frameworkUrl: "Build/WebGL.framework.js.unityweb",
-    codeUrl: "Build/WebGL.wasm.unityweb",
-    streamingAssetsUrl: "StreamingAssets",
-    companyName: "Basemaze",
-    productName: "Basemaze",
-    productVersion: "1.0"
-  }).then((unityInstance) => {
-    console.log("Unity loaded");
-    // Unity is ready — now tell Farcaster
-    callReady();
-  }).catch((message) => {
-    console.error("Failed to load Unity:", message);
-  });
-
-  // If for some reason Unity uses another load mechanism, call callReady()
-  // after whatever callback/event indicates Unity is ready.
-    </script>
   </body>
 </html>
