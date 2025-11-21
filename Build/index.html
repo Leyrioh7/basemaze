@@ -5,27 +5,32 @@
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes">
     <title>Unity Web Player | Basemaze</title>
+
     <link rel="shortcut icon" href="TemplateData/favicon.ico">
     <link rel="stylesheet" href="TemplateData/style.css">
-    <!-- Preload critical resources for faster loading -->
+
+    <!-- Preload Unity files -->
     <link rel="preload" href="Build/WebGL.loader.js" as="script">
     <link rel="preload" href="Build/WebGL.framework.js.unityweb" as="fetch" crossorigin>
     <link rel="preload" href="Build/WebGL.data.unityweb" as="fetch" crossorigin>
     <link rel="preload" href="Build/WebGL.wasm.unityweb" as="fetch" crossorigin>
-    <!-- DNS prefetch and preconnect for faster resource loading -->
-    <link rel="dns-prefetch" href="//vercel.app">
-    <link rel="preconnect" href="//vercel.app">
-    <script src="ready.js"></script>
 
-    <!-- Farcaster SDK: SINGLE import used to notify when Unity is ready -->
+    <!-- Farcaster SDK -->
     <script type="module">
       import { FarcasterSDK } from "https://miniapp-sdk.farcaster.xyz/sdk.js";
       window.farcasterSDK = new FarcasterSDK();
+      console.log("Farcaster SDK loaded");
     </script>
+
+    <!-- Ready handler -->
+    <script src="TemplateData/ready.js"></script>
+
   </head>
+
   <body>
     <div id="unity-container" class="unity-desktop">
       <canvas id="unity-canvas" tabindex="-1"></canvas>
+
       <div id="unity-loading-bar">
         <div id="unity-logo"></div>
         <div id="unity-loading-text">Loading...</div>
@@ -34,7 +39,9 @@
         </div>
         <div id="unity-progress-text">0%</div>
       </div>
-      <div id="unity-warning"> </div>
+
+      <div id="unity-warning"></div>
+
       <div id="unity-footer">
         <div id="unity-logo-title-footer"></div>
         <div id="unity-fullscreen-button"></div>
@@ -43,38 +50,26 @@
     </div>
 
     <script>
-      // Minimal and safe global error handlers (no aggressive suppression)
-      window.addEventListener('error', function(event) {
-        // Keep logging but avoid breaking execution
-        console.warn('Global error:', event.message);
-      }, true);
-      window.addEventListener('unhandledrejection', function(event) {
-        console.warn('Unhandled promise rejection:', event.reason);
-      });
+      // Global safe error handlers
+      window.addEventListener("error", e => console.warn("Error:", e.message));
+      window.addEventListener("unhandledrejection", e => console.warn("Promise rejection:", e.reason));
 
       var canvas = document.querySelector("#unity-canvas");
 
       function unityShowBanner(msg, type) {
         var warningBanner = document.querySelector("#unity-warning");
-        function updateBannerVisibility() {
-          warningBanner.style.display = warningBanner.children.length ? 'block' : 'none';
-        }
         var div = document.createElement('div');
         div.innerHTML = msg;
         warningBanner.appendChild(div);
-        if (type == 'error') div.style = 'background: red; padding: 10px;';
-        else {
-          if (type == 'warning') div.style = 'background: yellow; padding: 10px;';
-          setTimeout(function() {
-            warningBanner.removeChild(div);
-            updateBannerVisibility();
-          }, 5000);
-        }
-        updateBannerVisibility();
+        div.style = type === 'error'
+          ? 'background: red; padding: 10px;'
+          : 'background: yellow; padding: 10px;';
+        if (type !== 'error') setTimeout(() => div.remove(), 5000);
       }
 
       var buildUrl = "Build";
       var loaderUrl = buildUrl + "/WebGL.loader.js";
+
       var config = {
         arguments: [],
         dataUrl: buildUrl + "/WebGL.data.unityweb",
@@ -82,17 +77,9 @@
         codeUrl: buildUrl + "/WebGL.wasm.unityweb",
         streamingAssetsUrl: "StreamingAssets",
         companyName: "DefaultCompany",
-        productName: "PacTon_5.0",
-        productVersion: "1.11",
+        productName: "Basemaze",
+        productVersion: "1.0",
         showBanner: unityShowBanner,
-        webglContextAttributes: {
-          preserveDrawingBuffer: false,
-          powerPreference: "high-performance",
-          failIfMajorPerformanceCaveat: false,
-          antialias: true,
-          depth: true,
-          stencil: false
-        },
         matchWebGLToCanvasSize: true
       };
 
@@ -100,141 +87,62 @@
         document.querySelector("#unity-container").className = "unity-mobile";
         canvas.className = "unity-mobile";
         config.devicePixelRatio = 1;
-      } else {
-        document.querySelector("#unity-container").className = "unity-desktop";
       }
 
       var loadingBar = document.querySelector("#unity-loading-bar");
       var progressBar = document.querySelector("#unity-progress-bar-full");
       var progressText = document.querySelector("#unity-progress-text");
       var loadingText = document.querySelector("#unity-loading-text");
-      loadingBar.style.display = "block";
 
-      loadingText.textContent = "Initializing...";
-      progressText.textContent = "0%";
+      loadingBar.style.display = "block";
 
       var script = document.createElement("script");
       script.src = loaderUrl;
 
-      var loadingStartTime = Date.now();
-      var showLoadingProgress = setInterval(function() {
-        var elapsed = Date.now() - loadingStartTime;
-        if (elapsed > 1000) {
-          loadingText.textContent = "Loading assets...";
-        }
-        if (elapsed > 3000) {
-          loadingText.textContent = "Preparing game...";
-        }
-      }, 500);
-
       script.onload = () => {
-        clearInterval(showLoadingProgress);
-        loadingText.textContent = "Loading game...";
+        createUnityInstance(canvas, config, progress => {
+          var percent = Math.floor(progress * 100);
+          progressBar.style.width = percent + "%";
+          progressText.textContent = percent + "%";
+        })
+        .then(unityInstance => {
+          window.unityInstance = unityInstance;
 
-        if (!canvas || !canvas.getContext) {
-          console.error("Canvas not available");
           loadingBar.style.display = "none";
-          unityShowBanner("Canvas not available. Please refresh the page.", "error");
-          return;
-        }
 
-        if (!canvas.width || !canvas.height) {
-          canvas.width = 960;
-          canvas.height = 540;
-        }
-
-        requestAnimationFrame(() => {
-          try {
-            var unityPromise = createUnityInstance(canvas, config, (progress) => {
-              var percent = Math.floor(progress * 100);
-              progressBar.style.width = 100 * progress + "%";
-              progressText.textContent = percent + "%";
-              if (percent < 30) {
-                loadingText.textContent = "Downloading files...";
-              } else if (percent < 60) {
-                loadingText.textContent = "Loading assets...";
-              } else if (percent < 90) {
-                loadingText.textContent = "Initializing game...";
-              } else {
-                loadingText.textContent = "Almost ready...";
+          // Send Farcaster ready AFTER Unity loads
+          setTimeout(() => {
+            try {
+              if (window.farcasterSDK?.actions?.ready) {
+                window.farcasterSDK.actions.ready();
+                window.farcasterSDK.readySent = true;
+                console.log("Farcaster ready() sent after Unity load");
               }
-            });
-
-            unityPromise.catch((error) => {
-              console.error("Unity promise error:", error);
-            });
-
-            unityPromise.then((unityInstance) => {
-              loadingText.textContent = "Ready!";
-              progressText.textContent = "100%";
-              setTimeout(() => {
-                loadingBar.style.display = "none";
-              }, 300);
-
-              window.unityInstance = unityInstance;
-
-              // Safe hook: notify Farcaster SDK that Unity is ready
-              try {
-                if (window.farcasterSDK && window.farcasterSDK.actions && typeof window.farcasterSDK.actions.ready === 'function') {
-                  window.farcasterSDK.actions.ready();
-                  window.farcasterSDK.readySent = true;
-                  console.log('Farcaster SDK: ready() called after Unity loaded.');
-                } else {
-                  console.log('Farcaster SDK not available yet; will attempt fallback.');
-                }
-              } catch (e) {
-                console.warn('Error calling Farcaster ready:', e);
-              }
-
-              document.querySelector("#unity-fullscreen-button").onclick = () => {
-                unityInstance.SetFullscreen(1);
-              };
-
-              // Make canvas responsive
-              if (!/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-                canvas.style.width = "100%";
-                canvas.style.maxWidth = "1920px";
-                canvas.style.height = "auto";
-              }
-            }).catch((message) => {
-              clearInterval(showLoadingProgress);
-              console.error("Unity initialization failed:", message);
-              loadingBar.style.display = "none";
-              var errorMsg = typeof message === 'string' ? message : "Unknown error occurred";
-              unityShowBanner("Failed to load Unity WebGL content: " + errorMsg + ". Please try refreshing the page.", "error");
-            });
-          } catch(error) {
-            clearInterval(showLoadingProgress);
-            console.error("Error creating Unity instance:", error);
-            loadingBar.style.display = "none";
-            unityShowBanner("Error initializing Unity: " + error.message + ". Please try refreshing the page.", "error");
-          }
+            } catch (e) {}
+          }, 300);
+        })
+        .catch(err => {
+          console.error(err);
+          unityShowBanner("Unity failed to load: " + err, "error");
         });
       };
 
       script.onerror = () => {
-        clearInterval(showLoadingProgress);
-        console.error("Failed to load Unity loader script");
-        loadingBar.style.display = "none";
-        unityShowBanner("Failed to load Unity loader script. Please check your network connection.", "error");
+        unityShowBanner("Failed to load loader script", "error");
       };
 
       document.body.appendChild(script);
 
-      // Fallback: periodically try to notify Farcaster SDK if it wasn't available at load time
-      var farcasterFallbackInterval = setInterval(function() {
-        try {
-          if (window.farcasterSDK && window.farcasterSDK.actions && typeof window.farcasterSDK.actions.ready === 'function' && !window.farcasterSDK.readySent) {
-            window.farcasterSDK.actions.ready();
-            window.farcasterSDK.readySent = true;
-            console.log('Farcaster SDK: ready() called from fallback.');
-            clearInterval(farcasterFallbackInterval);
-          }
-        } catch (e) {
-          // ignore
+      // Failsafe retry every 500ms
+      setInterval(() => {
+        if (!window.farcasterSDK?.readySent && window.farcasterSDK?.actions?.ready) {
+          window.farcasterSDK.actions.ready();
+          window.farcasterSDK.readySent = true;
+          console.log("Farcaster fallback ready() fired");
         }
       }, 500);
     </script>
 
   </body>
 </html>
+
