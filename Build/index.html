@@ -15,7 +15,7 @@
     <link rel="preload" href="Build/WebGL.data.unityweb" as="fetch" crossorigin>
     <link rel="preload" href="Build/WebGL.wasm.unityweb" as="fetch" crossorigin>
 
-     <!-- Farcaster SDK - Using esm.sh with bundled dependencies -->
+    <!-- Farcaster SDK - Using esm.sh with bundled dependencies -->
     <script type="importmap">
     {
       "imports": {
@@ -24,22 +24,31 @@
     }
     </script>
     <script type="module">
-      try {
-        // Use esm.sh with bundle mode to include all dependencies
-        const { sdk } = await import("https://esm.sh/@farcaster/miniapp-sdk@latest?bundle");
-        window.farcasterSDK = sdk;
-        console.log("Farcaster SDK loaded successfully", window.farcasterSDK);
-      } catch (error) {
-        console.error("Failed to load Farcaster SDK:", error);
-        // Create a stub to prevent errors
-        window.farcasterSDK = {
-          actions: {
-            ready: function() {
-              console.warn("Farcaster SDK stub: ready() called but SDK failed to load");
-            }
+      // Initialize SDK loading immediately
+      window.farcasterSDK = {
+        actions: {
+          ready: function() {
+            console.warn("Farcaster SDK stub: ready() called but SDK not loaded yet");
           }
-        };
-      }
+        },
+        loaded: false,
+        readySent: false
+      };
+
+      (async function() {
+        try {
+          // Use esm.sh with bundle mode to include all dependencies
+          const { sdk } = await import("https://esm.sh/@farcaster/miniapp-sdk@latest?bundle");
+          window.farcasterSDK = sdk;
+          window.farcasterSDK.loaded = true;
+          window.farcasterSDK.readySent = false; // Reset so ready() can be called
+          console.log("Farcaster SDK loaded successfully", window.farcasterSDK);
+        } catch (error) {
+          console.error("Failed to load Farcaster SDK:", error);
+          // Keep the stub but mark as not loaded
+          window.farcasterSDK.loaded = false;
+        }
+      })();
     </script>
 
     <!-- Ready handler -->
@@ -133,13 +142,15 @@
           // Send Farcaster ready AFTER Unity loads
           setTimeout(() => {
             try {
-              if (window.farcasterSDK?.actions?.ready) {
+              if (window.farcasterSDK?.actions?.ready && !window.farcasterSDK.readySent) {
                 window.farcasterSDK.actions.ready();
                 window.farcasterSDK.readySent = true;
                 console.log("Farcaster ready() sent after Unity load");
               }
-            } catch (e) {}
-          }, 300);
+            } catch (e) {
+              console.error("Error calling Farcaster ready():", e);
+            }
+          }, 500);
         })
         .catch(err => {
           console.error(err);
@@ -153,14 +164,33 @@
 
       document.body.appendChild(script);
 
-      // Failsafe retry every 500ms
-      setInterval(() => {
-        if (!window.farcasterSDK?.readySent && window.farcasterSDK?.actions?.ready) {
-          window.farcasterSDK.actions.ready();
-          window.farcasterSDK.readySent = true;
-          console.log("Farcaster fallback ready() fired");
+      // Failsafe: Call ready() after Unity loads OR after timeout (critical for mobile)
+      var readyCalled = false;
+      var callReady = function() {
+        if (!readyCalled && window.farcasterSDK?.actions?.ready) {
+          try {
+            window.farcasterSDK.actions.ready();
+            window.farcasterSDK.readySent = true;
+            readyCalled = true;
+            console.log("Farcaster ready() called (failsafe)");
+          } catch (e) {
+            console.error("Error in failsafe ready():", e);
+          }
         }
-      }, 500);
+      };
+
+      // Call ready after Unity instance is created
+      if (window.unityInstance) {
+        setTimeout(callReady, 500);
+      }
+
+      // Critical: Call ready() after 3 seconds max to prevent infinite blue screen on mobile
+      setTimeout(function() {
+        if (!readyCalled) {
+          console.warn("Calling Farcaster ready() after timeout to prevent blue screen");
+          callReady();
+        }
+      }, 3000);
     </script>
 
   </body>

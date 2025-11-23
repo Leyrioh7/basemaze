@@ -1,12 +1,16 @@
 // ready.js
 window.addEventListener("DOMContentLoaded", () => {
+  var readyCalled = false;
+  
   // Wait for SDK to load (ES modules load asynchronously)
   const checkSDK = () => {
     try {
-      if (window.farcasterSDK?.actions?.ready) {
+      if (window.farcasterSDK?.actions?.ready && !readyCalled) {
         window.farcasterSDK.actions.ready();
+        window.farcasterSDK.readySent = true;
+        readyCalled = true;
         console.log("READY sent from ready.js");
-      } else {
+      } else if (!readyCalled) {
         // Retry after a short delay if SDK not loaded yet
         setTimeout(checkSDK, 100);
       }
@@ -18,10 +22,19 @@ window.addEventListener("DOMContentLoaded", () => {
   // Start checking immediately
   checkSDK();
   
-  // Also set a timeout to stop retrying after 5 seconds
+  // Critical fallback: Call ready() after 2 seconds max to prevent blue screen
   setTimeout(() => {
-    if (!window.farcasterSDK?.actions?.ready) {
-      console.warn("Farcaster SDK not available after 5 seconds");
+    if (!readyCalled && window.farcasterSDK?.actions?.ready) {
+      try {
+        window.farcasterSDK.actions.ready();
+        window.farcasterSDK.readySent = true;
+        readyCalled = true;
+        console.log("READY sent from ready.js (timeout fallback)");
+      } catch (e) {
+        console.error("Error in timeout fallback ready():", e);
+      }
+    } else if (!readyCalled) {
+      console.warn("Farcaster SDK not available after 2 seconds - blue screen may appear");
     }
-  }, 5000);
+  }, 2000);
 });
