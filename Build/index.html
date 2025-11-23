@@ -15,7 +15,85 @@
     <link rel="preload" href="Build/WebGL.data.unityweb" as="fetch" crossorigin>
     <link rel="preload" href="Build/WebGL.wasm.unityweb" as="fetch" crossorigin>
 
+    <!-- Mobile Debug Overlay -->
+    <style>
+      #mobile-debug {
+        position: fixed;
+        top: 10px;
+        left: 10px;
+        background: rgba(0, 0, 0, 0.8);
+        color: #0f0;
+        padding: 10px;
+        font-family: monospace;
+        font-size: 10px;
+        z-index: 99999;
+        max-width: 90%;
+        max-height: 50%;
+        overflow: auto;
+        border: 2px solid #0f0;
+        display: none;
+      }
+      #mobile-debug.show { display: block; }
+      #mobile-debug .status { margin: 2px 0; }
+      #mobile-debug .error { color: #f00; }
+      #mobile-debug .success { color: #0f0; }
+      #mobile-debug .warning { color: #ff0; }
+      #mobile-debug-toggle {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        background: #0f0;
+        color: #000;
+        border: none;
+        padding: 5px 10px;
+        font-size: 12px;
+        z-index: 99998;
+        cursor: pointer;
+      }
+    </style>
+    <button id="mobile-debug-toggle" onclick="document.getElementById('mobile-debug').classList.toggle('show')">DEBUG</button>
+    <div id="mobile-debug"></div>
+
     <!-- Farcaster SDK - Using esm.sh with bundled dependencies -->
+    <script>
+      // Mobile debugging helper
+      var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      var debugLog = [];
+      var debugEl = null;
+      
+      function addDebugLog(msg, type) {
+        var timestamp = new Date().toLocaleTimeString();
+        var logEntry = { time: timestamp, msg: msg, type: type || 'info' };
+        debugLog.push(logEntry);
+        
+        // Log to console
+        var consoleMsg = "[" + timestamp + "] " + msg;
+        if (type === 'error') console.error(consoleMsg);
+        else if (type === 'warning') console.warn(consoleMsg);
+        else if (type === 'success') console.log(consoleMsg);
+        else console.log(consoleMsg);
+        
+        // Update debug overlay
+        if (debugEl) {
+          var div = document.createElement('div');
+          div.className = 'status ' + type;
+          div.textContent = '[' + timestamp + '] ' + msg;
+          debugEl.appendChild(div);
+          debugEl.scrollTop = debugEl.scrollHeight;
+        }
+      }
+      
+      // Initialize debug overlay
+      window.addEventListener('DOMContentLoaded', function() {
+        debugEl = document.getElementById('mobile-debug');
+        if (isMobile) {
+          debugEl.classList.add('show'); // Auto-show on mobile
+          addDebugLog('Mobile device detected: ' + navigator.userAgent, 'info');
+        }
+        addDebugLog('Page loaded', 'info');
+      });
+    </script>
+    
     <script type="importmap">
     {
       "imports": {
@@ -28,6 +106,7 @@
       window.farcasterSDK = {
         actions: {
           ready: function() {
+            addDebugLog('Farcaster SDK stub: ready() called but SDK not loaded yet', 'warning');
             console.warn("Farcaster SDK stub: ready() called but SDK not loaded yet");
           }
         },
@@ -35,18 +114,31 @@
         readySent: false
       };
 
+      addDebugLog('Starting Farcaster SDK load...', 'info');
+      
       (async function() {
         try {
+          addDebugLog('Attempting to import SDK from esm.sh...', 'info');
           // Use esm.sh with bundle mode to include all dependencies
           const { sdk } = await import("https://esm.sh/@farcaster/miniapp-sdk@latest?bundle");
           window.farcasterSDK = sdk;
           window.farcasterSDK.loaded = true;
           window.farcasterSDK.readySent = false; // Reset so ready() can be called
+          addDebugLog('Farcaster SDK loaded successfully!', 'success');
+          addDebugLog('SDK has ready function: ' + (typeof sdk.actions.ready === 'function'), 'info');
           console.log("Farcaster SDK loaded successfully", window.farcasterSDK);
         } catch (error) {
+          addDebugLog('Failed to load Farcaster SDK: ' + error.message, 'error');
+          addDebugLog('Error stack: ' + (error.stack || 'N/A'), 'error');
           console.error("Failed to load Farcaster SDK:", error);
           // Keep the stub but mark as not loaded
           window.farcasterSDK.loaded = false;
+          
+          // Try fallback: maybe ES modules aren't supported, try loading via script tag
+          if (isMobile) {
+            addDebugLog('Mobile detected - ES modules may not be supported, trying fallback...', 'warning');
+            // We'll add a fallback approach here if needed
+          }
         }
       })();
     </script>
@@ -79,9 +171,15 @@
     </div>
 
     <script>
-      // Global safe error handlers
-      window.addEventListener("error", e => console.warn("Error:", e.message));
-      window.addEventListener("unhandledrejection", e => console.warn("Promise rejection:", e.reason));
+      // Global safe error handlers with debug logging
+      window.addEventListener("error", e => {
+        addDebugLog('Global error: ' + e.message + ' at ' + (e.filename || 'unknown') + ':' + (e.lineno || '?'), 'error');
+        console.warn("Error:", e.message);
+      });
+      window.addEventListener("unhandledrejection", e => {
+        addDebugLog('Unhandled promise rejection: ' + (e.reason?.message || e.reason), 'error');
+        console.warn("Promise rejection:", e.reason);
+      });
 
       var canvas = document.querySelector("#unity-canvas");
 
@@ -142,12 +240,22 @@
           // Send Farcaster ready AFTER Unity loads
           setTimeout(() => {
             try {
+              addDebugLog('Unity loaded, checking SDK...', 'info');
+              addDebugLog('SDK loaded: ' + window.farcasterSDK?.loaded, 'info');
+              addDebugLog('SDK has ready: ' + (typeof window.farcasterSDK?.actions?.ready === 'function'), 'info');
+              addDebugLog('Ready already sent: ' + window.farcasterSDK?.readySent, 'info');
+              
               if (window.farcasterSDK?.actions?.ready && !window.farcasterSDK.readySent) {
+                addDebugLog('Calling Farcaster ready() after Unity load...', 'success');
                 window.farcasterSDK.actions.ready();
                 window.farcasterSDK.readySent = true;
+                addDebugLog('Farcaster ready() called successfully!', 'success');
                 console.log("Farcaster ready() sent after Unity load");
+              } else {
+                addDebugLog('Cannot call ready() - SDK not ready or already called', 'warning');
               }
             } catch (e) {
+              addDebugLog('Error calling Farcaster ready(): ' + e.message, 'error');
               console.error("Error calling Farcaster ready():", e);
             }
           }, 500);
@@ -169,28 +277,50 @@
       var callReady = function() {
         if (!readyCalled && window.farcasterSDK?.actions?.ready) {
           try {
+            addDebugLog('Failsafe: Calling ready()...', 'warning');
             window.farcasterSDK.actions.ready();
             window.farcasterSDK.readySent = true;
             readyCalled = true;
+            addDebugLog('Failsafe ready() called successfully!', 'success');
             console.log("Farcaster ready() called (failsafe)");
+            return true;
           } catch (e) {
+            addDebugLog('Failsafe ready() error: ' + e.message, 'error');
             console.error("Error in failsafe ready():", e);
+            return false;
           }
+        } else {
+          addDebugLog('Failsafe: Cannot call ready() - ' + 
+            (!readyCalled ? 'already called' : 'SDK not available'), 'warning');
+          return false;
         }
       };
 
       // Call ready after Unity instance is created
       if (window.unityInstance) {
+        addDebugLog('Unity instance exists, scheduling ready() call...', 'info');
         setTimeout(callReady, 500);
       }
 
       // Critical: Call ready() after 3 seconds max to prevent infinite blue screen on mobile
       setTimeout(function() {
         if (!readyCalled) {
+          addDebugLog('TIMEOUT: Calling ready() to prevent blue screen!', 'warning');
           console.warn("Calling Farcaster ready() after timeout to prevent blue screen");
           callReady();
+        } else {
+          addDebugLog('Timeout reached but ready() already called', 'info');
         }
       }, 3000);
+      
+      // Periodic status check for debugging
+      if (isMobile) {
+        setInterval(function() {
+          addDebugLog('Status check - SDK loaded: ' + window.farcasterSDK?.loaded + 
+            ', Ready sent: ' + window.farcasterSDK?.readySent + 
+            ', Unity: ' + (window.unityInstance ? 'yes' : 'no'), 'info');
+        }, 5000);
+      }
     </script>
 
   </body>
