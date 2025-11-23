@@ -15,11 +15,31 @@
     <link rel="preload" href="Build/WebGL.data.unityweb" as="fetch" crossorigin>
     <link rel="preload" href="Build/WebGL.wasm.unityweb" as="fetch" crossorigin>
 
-    <!-- Farcaster SDK -->
+     <!-- Farcaster SDK - Using esm.sh with bundled dependencies -->
+    <script type="importmap">
+    {
+      "imports": {
+        "uuid": "https://esm.sh/uuid@latest"
+      }
+    }
+    </script>
     <script type="module">
-      import { sdk } from "https://esm.sh/@farcaster/miniapp-sdk@latest";
-      window.farcasterSDK = sdk;
-      console.log("Farcaster SDK loaded", window.farcasterSDK);
+      try {
+        // Use esm.sh with bundle mode to include all dependencies
+        const { sdk } = await import("https://esm.sh/@farcaster/miniapp-sdk@latest?bundle");
+        window.farcasterSDK = sdk;
+        console.log("Farcaster SDK loaded successfully", window.farcasterSDK);
+      } catch (error) {
+        console.error("Failed to load Farcaster SDK:", error);
+        // Create a stub to prevent errors
+        window.farcasterSDK = {
+          actions: {
+            ready: function() {
+              console.warn("Farcaster SDK stub: ready() called but SDK failed to load");
+            }
+          }
+        };
+      }
     </script>
 
     <!-- Ready handler -->
