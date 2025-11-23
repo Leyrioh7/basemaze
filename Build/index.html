@@ -17,8 +17,8 @@
 
     <!-- Farcaster SDK -->
     <script type="module">
-      import { FarcasterSDK } from "https://miniapp-sdk.farcaster.xyz/sdk.js";
-      window.farcasterSDK = new FarcasterSDK();
+      import { sdk } from "https://cdn.jsdelivr.net/npm/@farcaster/miniapp-sdk@latest/+esm";
+      window.farcasterSDK = sdk;
       console.log("Farcaster SDK loaded");
     </script>
 
