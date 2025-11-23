@@ -106,12 +106,15 @@
       window.farcasterSDK = {
         actions: {
           ready: function() {
-            addDebugLog('Farcaster SDK stub: ready() called but SDK not loaded yet', 'warning');
+            // This is the stub - don't mark as sent, just log
+            addDebugLog('Farcaster SDK stub: ready() called but REAL SDK not loaded yet - waiting...', 'warning');
             console.warn("Farcaster SDK stub: ready() called but SDK not loaded yet");
+            // Don't set readySent here - wait for real SDK
           }
         },
         loaded: false,
-        readySent: false
+        readySent: false,
+        isStub: true  // Mark this as a stub
       };
 
       addDebugLog('Starting Farcaster SDK load...', 'info');
@@ -121,12 +124,29 @@
           addDebugLog('Attempting to import SDK from esm.sh...', 'info');
           // Use esm.sh with bundle mode to include all dependencies
           const { sdk } = await import("https://esm.sh/@farcaster/miniapp-sdk@latest?bundle");
+          
+          // Replace stub with real SDK
           window.farcasterSDK = sdk;
           window.farcasterSDK.loaded = true;
+          window.farcasterSDK.isStub = false;
           window.farcasterSDK.readySent = false; // Reset so ready() can be called
+          
           addDebugLog('Farcaster SDK loaded successfully!', 'success');
           addDebugLog('SDK has ready function: ' + (typeof sdk.actions.ready === 'function'), 'info');
           console.log("Farcaster SDK loaded successfully", window.farcasterSDK);
+          
+          // CRITICAL: If ready() was called on the stub, we need to call it on the real SDK now
+          if (window.farcasterSDK._stubReadyCalled) {
+            addDebugLog('Stub ready() was called earlier - calling REAL SDK ready() now!', 'warning');
+            try {
+              window.farcasterSDK.actions.ready();
+              window.farcasterSDK.readySent = true;
+              addDebugLog('REAL SDK ready() called successfully after load!', 'success');
+            } catch (e) {
+              addDebugLog('Error calling real SDK ready(): ' + e.message, 'error');
+            }
+            delete window.farcasterSDK._stubReadyCalled;
+          }
         } catch (error) {
           addDebugLog('Failed to load Farcaster SDK: ' + error.message, 'error');
           addDebugLog('Error stack: ' + (error.stack || 'N/A'), 'error');
@@ -241,18 +261,25 @@
           setTimeout(() => {
             try {
               addDebugLog('Unity loaded, checking SDK...', 'info');
+              var isRealSDK = window.farcasterSDK && !window.farcasterSDK.isStub && window.farcasterSDK.loaded;
               addDebugLog('SDK loaded: ' + window.farcasterSDK?.loaded, 'info');
+              addDebugLog('SDK is stub: ' + (window.farcasterSDK?.isStub ? 'yes' : 'no'), 'info');
+              addDebugLog('Is real SDK: ' + isRealSDK, 'info');
               addDebugLog('SDK has ready: ' + (typeof window.farcasterSDK?.actions?.ready === 'function'), 'info');
               addDebugLog('Ready already sent: ' + window.farcasterSDK?.readySent, 'info');
               
-              if (window.farcasterSDK?.actions?.ready && !window.farcasterSDK.readySent) {
-                addDebugLog('Calling Farcaster ready() after Unity load...', 'success');
+              if (isRealSDK && window.farcasterSDK?.actions?.ready && !window.farcasterSDK.readySent) {
+                addDebugLog('Calling REAL Farcaster SDK ready() after Unity load...', 'success');
                 window.farcasterSDK.actions.ready();
                 window.farcasterSDK.readySent = true;
-                addDebugLog('Farcaster ready() called successfully!', 'success');
-                console.log("Farcaster ready() sent after Unity load");
+                addDebugLog('REAL SDK ready() called successfully!', 'success');
+                console.log("Farcaster ready() sent after Unity load (REAL SDK)");
               } else {
-                addDebugLog('Cannot call ready() - SDK not ready or already called', 'warning');
+                var reason = 'unknown';
+                if (!isRealSDK) reason = 'not real SDK (still stub or not loaded)';
+                else if (window.farcasterSDK.readySent) reason = 'already called';
+                else if (!window.farcasterSDK.actions?.ready) reason = 'ready() not available';
+                addDebugLog('Cannot call ready() - ' + reason, 'warning');
               }
             } catch (e) {
               addDebugLog('Error calling Farcaster ready(): ' + e.message, 'error');
@@ -275,14 +302,17 @@
       // Failsafe: Call ready() after Unity loads OR after timeout (critical for mobile)
       var readyCalled = false;
       var callReady = function() {
-        if (!readyCalled && window.farcasterSDK?.actions?.ready) {
+        // CRITICAL: Only call if it's the REAL SDK, not the stub
+        var isRealSDK = window.farcasterSDK && !window.farcasterSDK.isStub && window.farcasterSDK.loaded;
+        
+        if (!readyCalled && isRealSDK && window.farcasterSDK?.actions?.ready && !window.farcasterSDK.readySent) {
           try {
-            addDebugLog('Failsafe: Calling ready()...', 'warning');
+            addDebugLog('Failsafe: Calling REAL SDK ready()...', 'warning');
             window.farcasterSDK.actions.ready();
             window.farcasterSDK.readySent = true;
             readyCalled = true;
-            addDebugLog('Failsafe ready() called successfully!', 'success');
-            console.log("Farcaster ready() called (failsafe)");
+            addDebugLog('Failsafe REAL SDK ready() called successfully!', 'success');
+            console.log("Farcaster ready() called (failsafe - REAL SDK)");
             return true;
           } catch (e) {
             addDebugLog('Failsafe ready() error: ' + e.message, 'error');
@@ -290,8 +320,15 @@
             return false;
           }
         } else {
-          addDebugLog('Failsafe: Cannot call ready() - ' + 
-            (!readyCalled ? 'already called' : 'SDK not available'), 'warning');
+          var reason = 'unknown';
+          if (readyCalled) reason = 'already called';
+          else if (!window.farcasterSDK) reason = 'SDK not available';
+          else if (window.farcasterSDK.isStub) reason = 'still using stub SDK';
+          else if (!window.farcasterSDK.loaded) reason = 'SDK not loaded yet';
+          else if (window.farcasterSDK.readySent) reason = 'ready() already sent';
+          else if (!window.farcasterSDK.actions?.ready) reason = 'ready() function not available';
+          
+          addDebugLog('Failsafe: Cannot call ready() - ' + reason, 'warning');
           return false;
         }
       };
