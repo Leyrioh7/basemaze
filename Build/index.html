@@ -125,6 +125,9 @@
           // Use esm.sh with bundle mode to include all dependencies
           const { sdk } = await import("https://esm.sh/@farcaster/miniapp-sdk@latest?bundle");
           
+          // Save the stub's _stubReadyCalled flag before replacing
+          var stubReadyCalled = window.farcasterSDK?._stubReadyCalled || false;
+          
           // Replace stub with real SDK
           window.farcasterSDK = sdk;
           window.farcasterSDK.loaded = true;
@@ -136,16 +139,22 @@
           console.log("Farcaster SDK loaded successfully", window.farcasterSDK);
           
           // CRITICAL: If ready() was called on the stub, we need to call it on the real SDK now
-          if (window.farcasterSDK._stubReadyCalled) {
+          if (stubReadyCalled) {
             addDebugLog('Stub ready() was called earlier - calling REAL SDK ready() now!', 'warning');
             try {
               window.farcasterSDK.actions.ready();
               window.farcasterSDK.readySent = true;
               addDebugLog('REAL SDK ready() called successfully after load!', 'success');
+              
+              // Verify it worked by checking if ready() is still callable
+              setTimeout(function() {
+                addDebugLog('Verification: ready() was called, blue screen should disappear', 'info');
+              }, 100);
             } catch (e) {
               addDebugLog('Error calling real SDK ready(): ' + e.message, 'error');
             }
-            delete window.farcasterSDK._stubReadyCalled;
+          } else {
+            addDebugLog('Stub ready() was not called, will wait for Unity or timeout', 'info');
           }
         } catch (error) {
           addDebugLog('Failed to load Farcaster SDK: ' + error.message, 'error');
@@ -308,11 +317,17 @@
         if (!readyCalled && isRealSDK && window.farcasterSDK?.actions?.ready && !window.farcasterSDK.readySent) {
           try {
             addDebugLog('Failsafe: Calling REAL SDK ready()...', 'warning');
-            window.farcasterSDK.actions.ready();
+            var result = window.farcasterSDK.actions.ready();
             window.farcasterSDK.readySent = true;
             readyCalled = true;
             addDebugLog('Failsafe REAL SDK ready() called successfully!', 'success');
-            console.log("Farcaster ready() called (failsafe - REAL SDK)");
+            addDebugLog('ready() returned: ' + (result !== undefined ? result : 'undefined'), 'info');
+            console.log("Farcaster ready() called (failsafe - REAL SDK)", result);
+            
+            // Verify after a moment
+            setTimeout(function() {
+              addDebugLog('Post-ready check: If blue screen still shows, ready() may not be working', 'warning');
+            }, 500);
             return true;
           } catch (e) {
             addDebugLog('Failsafe ready() error: ' + e.message, 'error');
