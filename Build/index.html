@@ -1,433 +1,178 @@
 <!DOCTYPE html>
 <html lang="en-us">
-  <head>
-    <meta charset="utf-8">
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes">
-    <title>Unity Web Player | Basemaze</title>
 
-    <link rel="shortcut icon" href="TemplateData/favicon.ico">
-    <link rel="stylesheet" href="TemplateData/style.css">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no">
+  <title>Unity Web Player | Basemaze</title>
 
-    <!-- Preload Unity files -->
-    <link rel="preload" href="Build/WebGL.loader.js" as="script">
-    <link rel="preload" href="Build/WebGL.framework.js.unityweb" as="fetch" crossorigin>
-    <link rel="preload" href="Build/WebGL.data.unityweb" as="fetch" crossorigin>
-    <link rel="preload" href="Build/WebGL.wasm.unityweb" as="fetch" crossorigin>
+  <link rel="shortcut icon" href="TemplateData/favicon.ico">
+  <link rel="stylesheet" href="TemplateData/style.css">
 
-    <!-- Mobile Debug Overlay -->
-    <style>
-      #mobile-debug {
-        position: fixed;
-        top: 10px;
-        left: 10px;
-        background: rgba(0, 0, 0, 0.8);
-        color: #0f0;
-        padding: 10px;
-        font-family: monospace;
-        font-size: 10px;
-        z-index: 99999;
-        max-width: 90%;
-        max-height: 50%;
-        overflow: auto;
-        border: 2px solid #0f0;
-        display: none;
-      }
-      #mobile-debug.show { display: block; }
-      #mobile-debug .status { margin: 2px 0; }
-      #mobile-debug .error { color: #f00; }
-      #mobile-debug .success { color: #0f0; }
-      #mobile-debug .warning { color: #ff0; }
-      #mobile-debug-toggle {
-        position: fixed;
-        top: 10px;
-        right: 10px;
-        background: #0f0;
-        color: #000;
-        border: none;
-        padding: 5px 10px;
-        font-size: 12px;
-        z-index: 99998;
-        cursor: pointer;
-      }
-    </style>
-    <button id="mobile-debug-toggle" onclick="document.getElementById('mobile-debug').classList.toggle('show')">DEBUG</button>
-    <div id="mobile-debug"></div>
+  <!-- Preload -->
+  <link rel="preload" href="Build/WebGL.loader.js" as="script">
+  <link rel="preload" href="Build/WebGL.framework.js.unityweb" as="fetch" crossorigin>
+  <link rel="preload" href="Build/WebGL.data.unityweb" as="fetch" crossorigin>
+  <link rel="preload" href="Build/WebGL.wasm.unityweb" as="fetch" crossorigin>
 
-    <!-- Farcaster SDK - Using esm.sh with bundled dependencies -->
-    <script>
-      // Mobile debugging helper
-      var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      var debugLog = [];
-      var debugEl = null;
-      
-      function addDebugLog(msg, type) {
-        var timestamp = new Date().toLocaleTimeString();
-        var logEntry = { time: timestamp, msg: msg, type: type || 'info' };
-        debugLog.push(logEntry);
-        
-        // Log to console
-        var consoleMsg = "[" + timestamp + "] " + msg;
-        if (type === 'error') console.error(consoleMsg);
-        else if (type === 'warning') console.warn(consoleMsg);
-        else if (type === 'success') console.log(consoleMsg);
-        else console.log(consoleMsg);
-        
-        // Update debug overlay
-        if (debugEl) {
-          var div = document.createElement('div');
-          div.className = 'status ' + type;
-          div.textContent = '[' + timestamp + '] ' + msg;
-          debugEl.appendChild(div);
-          debugEl.scrollTop = debugEl.scrollHeight;
-        }
-      }
-      
-      // Initialize debug overlay
-      window.addEventListener('DOMContentLoaded', function() {
-        debugEl = document.getElementById('mobile-debug');
-        if (isMobile) {
-          debugEl.classList.add('show'); // Auto-show on mobile
-          addDebugLog('Mobile device detected: ' + navigator.userAgent, 'info');
-        }
-        addDebugLog('Page loaded', 'info');
-      });
-    </script>
-    
-    <script type="importmap">
-    {
-      "imports": {
-        "uuid": "https://esm.sh/uuid@latest"
-      }
-    }
-    </script>
-    <script type="module">
-      // Initialize SDK loading immediately
-      window.farcasterSDK = {
-        actions: {
-          ready: function() {
-            // This is the stub - don't mark as sent, just log
-            addDebugLog('Farcaster SDK stub: ready() called but REAL SDK not loaded yet - waiting...', 'warning');
-            console.warn("Farcaster SDK stub: ready() called but SDK not loaded yet");
-            // Don't set readySent here - wait for real SDK
+  <!-- Farcaster SDK Loader -->
+  <script>
+    (async function loadFarcasterSDK() {
+      const sdkUrlModule = "https://miniapp-sdk.farcaster.xyz/sdk.js";
+      const sdkUrlScript = "https://miniapp-sdk.farcaster.xyz/sdk.umd.js";
+
+      window.farcasterReady = function () {
+        try {
+          const sdkObj = window.farcasterSDK || window.farcaster;
+          if (sdkObj?.actions?.ready) {
+            sdkObj.actions.ready();
+            console.log("window.farcasterReady() called");
           }
-        },
-        loaded: false,
-        readySent: false,
-        isStub: true  // Mark this as a stub
+        } catch (e) {
+          console.warn("ready() error:", e);
+        }
       };
 
-      addDebugLog('Starting Farcaster SDK load...', 'info');
-      
-      (async function() {
-        try {
-          addDebugLog('Attempting to import SDK from esm.sh...', 'info');
-          // Use esm.sh with bundle mode to include all dependencies
-          const { sdk } = await import("https://esm.sh/@farcaster/miniapp-sdk@latest?bundle");
-          
-          // Save the stub's _stubReadyCalled flag before replacing
-          var stubReadyCalled = window.farcasterSDK?._stubReadyCalled || false;
-          
-          // Replace stub with real SDK
-          window.farcasterSDK = sdk;
-          window.farcasterSDK.loaded = true;
-          window.farcasterSDK.isStub = false;
-          window.farcasterSDK.readySent = false; // Reset so ready() can be called
-          
-          addDebugLog('Farcaster SDK loaded successfully!', 'success');
-          addDebugLog('SDK has ready function: ' + (typeof sdk.actions.ready === 'function'), 'info');
-          console.log("Farcaster SDK loaded successfully", window.farcasterSDK);
-          
-          // CRITICAL: If ready() was called on the stub, we need to call it on the real SDK now
-          if (stubReadyCalled) {
-            addDebugLog('Stub ready() was called earlier - calling REAL SDK ready() now!', 'warning');
-            try {
-              window.farcasterSDK.actions.ready();
-              window.farcasterSDK.readySent = true;
-              addDebugLog('REAL SDK ready() called successfully after load!', 'success');
-              
-              // Verify it worked by checking if ready() is still callable
-              setTimeout(function() {
-                addDebugLog('Verification: ready() was called, blue screen should disappear', 'info');
-              }, 100);
-            } catch (e) {
-              addDebugLog('Error calling real SDK ready(): ' + e.message, 'error');
-            }
-          } else {
-            addDebugLog('Stub ready() was not called, will wait for Unity or timeout', 'info');
-          }
-        } catch (error) {
-          addDebugLog('Failed to load Farcaster SDK: ' + error.message, 'error');
-          addDebugLog('Error stack: ' + (error.stack || 'N/A'), 'error');
-          console.error("Failed to load Farcaster SDK:", error);
-          // Keep the stub but mark as not loaded
-          window.farcasterSDK.loaded = false;
-          
-          // Try fallback: maybe ES modules aren't supported, try loading via script tag
-          if (isMobile) {
-            addDebugLog('Mobile detected - ES modules may not be supported, trying fallback...', 'warning');
-            // We'll add a fallback approach here if needed
-          }
-        }
-      })();
-    </script>
+      try {
+        const module = await import(sdkUrlModule);
+        const FarcasterSDK = module.FarcasterSDK || module.default;
+        window.farcasterSDK = new FarcasterSDK();
+        console.log("SDK loaded (module)");
+        return;
+      } catch (e) {
+        console.warn("Module load failed:", e);
+      }
 
-    <!-- Ready handler -->
-    <script src="TemplateData/ready.js"></script>
+      try {
+        await new Promise((resolve, reject) => {
+          const s = document.createElement("script");
+          s.src = sdkUrlScript;
+          s.onload = resolve;
+          s.onerror = reject;
+          document.head.appendChild(s);
+        });
 
-  </head>
+        if (window.FarcasterSDK) window.farcasterSDK = new window.FarcasterSDK();
+        if (!window.farcasterSDK && window.farcaster) window.farcasterSDK = window.farcaster;
 
-  <body>
-    <div id="unity-container" class="unity-desktop">
-      <canvas id="unity-canvas" tabindex="-1"></canvas>
+        console.log("SDK loaded (fallback)");
+      } catch (e) {
+        console.error("SDK fallback failed:", e);
+      }
+    })();
+  </script>
 
-      <div id="unity-loading-bar">
-        <div id="unity-logo"></div>
-        <div id="unity-loading-text">Loading...</div>
-        <div id="unity-progress-bar-empty">
-          <div id="unity-progress-bar-full"></div>
-        </div>
-        <div id="unity-progress-text">0%</div>
+  <script src="TemplateData/ready.js"></script>
+</head>
+
+<body>
+  <div id="unity-container" class="unity-desktop">
+    <canvas id="unity-canvas" tabindex="-1"></canvas>
+
+    <div id="unity-loading-bar">
+      <div id="unity-logo"></div>
+      <div id="unity-loading-text">Loading...</div>
+      <div id="unity-progress-bar-empty">
+        <div id="unity-progress-bar-full"></div>
       </div>
-
-      <div id="unity-warning"></div>
-
-      <div id="unity-footer">
-        <div id="unity-logo-title-footer"></div>
-        <div id="unity-fullscreen-button"></div>
-        <div id="unity-build-title">Basemaze</div>
-      </div>
+      <div id="unity-progress-text">0%</div>
     </div>
 
-    <script>
-      // Global safe error handlers with debug logging
-      window.addEventListener("error", e => {
-        addDebugLog('Global error: ' + e.message + ' at ' + (e.filename || 'unknown') + ':' + (e.lineno || '?'), 'error');
-        console.warn("Error:", e.message);
-      });
-      window.addEventListener("unhandledrejection", e => {
-        addDebugLog('Unhandled promise rejection: ' + (e.reason?.message || e.reason), 'error');
-        console.warn("Promise rejection:", e.reason);
-      });
+    <div id="unity-warning"></div>
 
-      var canvas = document.querySelector("#unity-canvas");
+    <div id="unity-footer">
+      <div id="unity-logo-title-footer"></div>
+      <div id="unity-fullscreen-button"></div>
+      <div id="unity-build-title">Basemaze</div>
+    </div>
+  </div>
 
-      function unityShowBanner(msg, type) {
-        var warningBanner = document.querySelector("#unity-warning");
-        var div = document.createElement('div');
-        div.innerHTML = msg;
-        warningBanner.appendChild(div);
-        div.style = type === 'error'
-          ? 'background: red; padding: 10px;'
-          : 'background: yellow; padding: 10px;';
-        if (type !== 'error') setTimeout(() => div.remove(), 5000);
-      }
+  <script>
+    // Errors
+    window.addEventListener("error", e => console.warn("Error:", e.message));
+    window.addEventListener("unhandledrejection", e => console.warn("Promise rejection:", e.reason));
 
-      var buildUrl = "Build";
-      var loaderUrl = buildUrl + "/WebGL.loader.js";
+    var canvas = document.querySelector("#unity-canvas");
 
-      var config = {
-        arguments: [],
-        dataUrl: buildUrl + "/WebGL.data.unityweb",
-        frameworkUrl: buildUrl + "/WebGL.framework.js.unityweb",
-        codeUrl: buildUrl + "/WebGL.wasm.unityweb",
-        streamingAssetsUrl: "StreamingAssets",
-        companyName: "DefaultCompany",
-        productName: "Basemaze",
-        productVersion: "1.0",
-        showBanner: unityShowBanner,
-        matchWebGLToCanvasSize: true
-      };
+    function unityShowBanner(msg, type) {
+      var warningBanner = document.querySelector("#unity-warning");
+      var div = document.createElement("div");
+      div.innerHTML = msg;
+      div.style = (type === "error")
+        ? "background: red; padding: 10px;"
+        : "background: yellow; padding: 10px;";
+      warningBanner.appendChild(div);
+      if (type !== "error") setTimeout(() => div.remove(), 5000);
+    }
 
-      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-        document.querySelector("#unity-container").className = "unity-mobile";
-        canvas.className = "unity-mobile";
-        config.devicePixelRatio = 1;
-      }
+    var buildUrl = "Build";
+    var loaderUrl = buildUrl + "/WebGL.loader.js";
 
-      var loadingBar = document.querySelector("#unity-loading-bar");
-      var progressBar = document.querySelector("#unity-progress-bar-full");
-      var progressText = document.querySelector("#unity-progress-text");
-      var loadingText = document.querySelector("#unity-loading-text");
+    var config = {
+      arguments: [],
+      dataUrl: buildUrl + "/WebGL.data.unityweb",
+      frameworkUrl: buildUrl + "/WebGL.framework.js.unityweb",
+      codeUrl: buildUrl + "/WebGL.wasm.unityweb",
+      streamingAssetsUrl: "StreamingAssets",
+      companyName: "DefaultCompany",
+      productName: "Basemaze",
+      productVersion: "1.0",
+      showBanner: unityShowBanner,
+      matchWebGLToCanvasSize: true
+    };
 
-      loadingBar.style.display = "block";
+    if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+      document.querySelector("#unity-container").className = "unity-mobile";
+      canvas.className = "unity-mobile";
+      config.devicePixelRatio = 1;
+    }
 
-      var script = document.createElement("script");
-      script.src = loaderUrl;
+    var loadingBar = document.querySelector("#unity-loading-bar");
+    var progressBar = document.querySelector("#unity-progress-bar-full");
+    var progressText = document.querySelector("#unity-progress-text");
 
-      script.onload = () => {
-        createUnityInstance(canvas, config, progress => {
-          var percent = Math.floor(progress * 100);
-          progressBar.style.width = percent + "%";
-          progressText.textContent = percent + "%";
-        })
+    loadingBar.style.display = "block";
+
+    var script = document.createElement("script");
+    script.src = loaderUrl;
+
+    script.onload = () => {
+      createUnityInstance(canvas, config, progress => {
+        var percent = Math.floor(progress * 100);
+        progressBar.style.width = percent + "%";
+        progressText.textContent = percent + "%";
+      })
         .then(unityInstance => {
           window.unityInstance = unityInstance;
-
           loadingBar.style.display = "none";
 
-          // Send Farcaster ready AFTER Unity loads (this is the primary way)
-          setTimeout(async () => {
-            try {
-              addDebugLog('Unity loaded, checking SDK...', 'info');
-              var isRealSDK = window.farcasterSDK && !window.farcasterSDK.isStub && window.farcasterSDK.loaded;
-              addDebugLog('SDK loaded: ' + window.farcasterSDK?.loaded, 'info');
-              addDebugLog('SDK is stub: ' + (window.farcasterSDK?.isStub ? 'yes' : 'no'), 'info');
-              addDebugLog('Is real SDK: ' + isRealSDK, 'info');
-              addDebugLog('SDK has ready: ' + (typeof window.farcasterSDK?.actions?.ready === 'function'), 'info');
-              addDebugLog('Ready already sent: ' + window.farcasterSDK?.readySent, 'info');
-              
-              if (isRealSDK && window.farcasterSDK?.actions?.ready && !window.farcasterSDK.readySent) {
-                addDebugLog('Calling REAL Farcaster SDK ready() after Unity load...', 'success');
-                
-                // Call ready() and handle if it's async
-                var result = window.farcasterSDK.actions.ready();
-                
-                // If it returns a promise, await it
-                if (result && typeof result.then === 'function') {
-                  addDebugLog('ready() returned a promise, awaiting...', 'info');
-                  try {
-                    await result;
-                    addDebugLog('ready() promise resolved successfully!', 'success');
-                  } catch (promiseError) {
-                    addDebugLog('ready() promise rejected: ' + promiseError.message, 'error');
-                    throw promiseError;
-                  }
-                }
-                
-                window.farcasterSDK.readySent = true;
-                readyCalled = true; // Update the failsafe flag too
-                addDebugLog('REAL SDK ready() called successfully after Unity load!', 'success');
-                console.log("Farcaster ready() sent after Unity load (REAL SDK)");
-              } else {
-                var reason = 'unknown';
-                if (!isRealSDK) reason = 'not real SDK (still stub or not loaded)';
-                else if (window.farcasterSDK.readySent) reason = 'already called';
-                else if (!window.farcasterSDK.actions?.ready) reason = 'ready() not available';
-                addDebugLog('Cannot call ready() - ' + reason, 'warning');
-              }
-            } catch (e) {
-              addDebugLog('Error calling Farcaster ready(): ' + e.message, 'error');
-              console.error("Error calling Farcaster ready():", e);
-            }
-          }, 500);
+          // Send ready AFTER Unity loads
+          setTimeout(() => {
+            if (window.farcasterReady) window.farcasterReady();
+          }, 300);
         })
         .catch(err => {
           console.error(err);
-          unityShowBanner("Unity failed to load: " + err, "error");
+          unityShowBanner("Unity failed: " + err, "error");
         });
-      };
+    };
 
-      script.onerror = () => {
-        unityShowBanner("Failed to load loader script", "error");
-      };
+    script.onerror = () => {
+      unityShowBanner("Failed to load WebGL.loader.js", "error");
+    };
 
-      document.body.appendChild(script);
+    document.body.appendChild(script);
 
-      // Failsafe: Call ready() AFTER Unity loads (critical for mobile)
-      var readyCalled = false;
-      var callReady = async function() {
-        // CRITICAL: Only call if it's the REAL SDK, not the stub
-        var isRealSDK = window.farcasterSDK && !window.farcasterSDK.isStub && window.farcasterSDK.loaded;
-        var unityLoaded = window.unityInstance !== undefined;
-        
-        if (!readyCalled && isRealSDK && window.farcasterSDK?.actions?.ready && !window.farcasterSDK.readySent) {
-          // IMPORTANT: Wait for Unity to load before calling ready()
-          if (!unityLoaded) {
-            addDebugLog('Failsafe: Waiting for Unity to load before calling ready()...', 'info');
-            return false; // Don't call yet, wait for Unity
-          }
-          
-          try {
-            addDebugLog('Failsafe: Calling REAL SDK ready() (Unity is loaded)...', 'warning');
-            
-            // Call ready() and handle if it's async
-            var result = window.farcasterSDK.actions.ready();
-            
-            // If it returns a promise, await it
-            if (result && typeof result.then === 'function') {
-              addDebugLog('ready() returned a promise, awaiting...', 'info');
-              try {
-                await result;
-                addDebugLog('ready() promise resolved successfully!', 'success');
-              } catch (promiseError) {
-                addDebugLog('ready() promise rejected: ' + promiseError.message, 'error');
-                throw promiseError;
-              }
-            } else {
-              addDebugLog('ready() returned: ' + (result !== undefined ? result : 'undefined (sync)'), 'info');
-            }
-            
-            window.farcasterSDK.readySent = true;
-            readyCalled = true;
-            addDebugLog('Failsafe REAL SDK ready() called successfully!', 'success');
-            console.log("Farcaster ready() called (failsafe - REAL SDK)", result);
-            
-            // Verify after a moment
-            setTimeout(function() {
-              addDebugLog('Post-ready check: Blue screen should disappear now', 'info');
-            }, 500);
-            return true;
-          } catch (e) {
-            addDebugLog('Failsafe ready() error: ' + e.message, 'error');
-            console.error("Error in failsafe ready():", e);
-            return false;
-          }
-        } else {
-          var reason = 'unknown';
-          if (readyCalled) reason = 'already called';
-          else if (!window.farcasterSDK) reason = 'SDK not available';
-          else if (window.farcasterSDK.isStub) reason = 'still using stub SDK';
-          else if (!window.farcasterSDK.loaded) reason = 'SDK not loaded yet';
-          else if (window.farcasterSDK.readySent) reason = 'ready() already sent';
-          else if (!window.farcasterSDK.actions?.ready) reason = 'ready() function not available';
-          else if (!unityLoaded) reason = 'Unity not loaded yet';
-          
-          addDebugLog('Failsafe: Cannot call ready() - ' + reason, 'warning');
-          return false;
-        }
-      };
-
-      // Watch for Unity instance and call ready() when it's available
-      var unityCheckInterval = setInterval(function() {
-        if (window.unityInstance && !readyCalled) {
-          clearInterval(unityCheckInterval);
-          addDebugLog('Unity instance detected, calling ready()...', 'info');
-          setTimeout(function() {
-            callReady();
-          }, 500);
-        }
-      }, 100);
-
-      // Critical: Call ready() after 15 seconds max (increased to wait for Unity)
-      // But only if Unity has loaded
-      setTimeout(function() {
-        clearInterval(unityCheckInterval);
-        if (!readyCalled) {
-          if (window.unityInstance) {
-            addDebugLog('TIMEOUT: Unity loaded, calling ready() to prevent blue screen!', 'warning');
-            console.warn("Calling Farcaster ready() after timeout (Unity is loaded)");
-            callReady();
-          } else {
-            addDebugLog('TIMEOUT: Unity not loaded yet, but calling ready() anyway...', 'warning');
-            console.warn("Calling Farcaster ready() after timeout (Unity not loaded)");
-            callReady();
-          }
-        } else {
-          addDebugLog('Timeout reached but ready() already called', 'info');
-        }
-      }, 15000); // Increased to 15 seconds to wait for Unity
-      
-      // Periodic status check for debugging
-      if (isMobile) {
-        setInterval(function() {
-          addDebugLog('Status check - SDK loaded: ' + window.farcasterSDK?.loaded + 
-            ', Ready sent: ' + window.farcasterSDK?.readySent + 
-            ', Unity: ' + (window.unityInstance ? 'yes' : 'no'), 'info');
-        }, 5000);
+    // Failsafe every 500ms
+    setInterval(() => {
+      if (window.farcasterSDK?.actions?.ready && !window.farcasterSDK.readySent) {
+        window.farcasterSDK.actions.ready();
+        window.farcasterSDK.readySent = true;
+        console.log("Failsafe ready() fired");
       }
-    </script>
+    }, 500);
+  </script>
 
-  </body>
+</body>
 </html>
-
