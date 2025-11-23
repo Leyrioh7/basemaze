@@ -266,8 +266,8 @@
 
           loadingBar.style.display = "none";
 
-          // Send Farcaster ready AFTER Unity loads
-          setTimeout(() => {
+          // Send Farcaster ready AFTER Unity loads (this is the primary way)
+          setTimeout(async () => {
             try {
               addDebugLog('Unity loaded, checking SDK...', 'info');
               var isRealSDK = window.farcasterSDK && !window.farcasterSDK.isStub && window.farcasterSDK.loaded;
@@ -279,9 +279,25 @@
               
               if (isRealSDK && window.farcasterSDK?.actions?.ready && !window.farcasterSDK.readySent) {
                 addDebugLog('Calling REAL Farcaster SDK ready() after Unity load...', 'success');
-                window.farcasterSDK.actions.ready();
+                
+                // Call ready() and handle if it's async
+                var result = window.farcasterSDK.actions.ready();
+                
+                // If it returns a promise, await it
+                if (result && typeof result.then === 'function') {
+                  addDebugLog('ready() returned a promise, awaiting...', 'info');
+                  try {
+                    await result;
+                    addDebugLog('ready() promise resolved successfully!', 'success');
+                  } catch (promiseError) {
+                    addDebugLog('ready() promise rejected: ' + promiseError.message, 'error');
+                    throw promiseError;
+                  }
+                }
+                
                 window.farcasterSDK.readySent = true;
-                addDebugLog('REAL SDK ready() called successfully!', 'success');
+                readyCalled = true; // Update the failsafe flag too
+                addDebugLog('REAL SDK ready() called successfully after Unity load!', 'success');
                 console.log("Farcaster ready() sent after Unity load (REAL SDK)");
               } else {
                 var reason = 'unknown';
@@ -308,25 +324,48 @@
 
       document.body.appendChild(script);
 
-      // Failsafe: Call ready() after Unity loads OR after timeout (critical for mobile)
+      // Failsafe: Call ready() AFTER Unity loads (critical for mobile)
       var readyCalled = false;
-      var callReady = function() {
+      var callReady = async function() {
         // CRITICAL: Only call if it's the REAL SDK, not the stub
         var isRealSDK = window.farcasterSDK && !window.farcasterSDK.isStub && window.farcasterSDK.loaded;
+        var unityLoaded = window.unityInstance !== undefined;
         
         if (!readyCalled && isRealSDK && window.farcasterSDK?.actions?.ready && !window.farcasterSDK.readySent) {
+          // IMPORTANT: Wait for Unity to load before calling ready()
+          if (!unityLoaded) {
+            addDebugLog('Failsafe: Waiting for Unity to load before calling ready()...', 'info');
+            return false; // Don't call yet, wait for Unity
+          }
+          
           try {
-            addDebugLog('Failsafe: Calling REAL SDK ready()...', 'warning');
+            addDebugLog('Failsafe: Calling REAL SDK ready() (Unity is loaded)...', 'warning');
+            
+            // Call ready() and handle if it's async
             var result = window.farcasterSDK.actions.ready();
+            
+            // If it returns a promise, await it
+            if (result && typeof result.then === 'function') {
+              addDebugLog('ready() returned a promise, awaiting...', 'info');
+              try {
+                await result;
+                addDebugLog('ready() promise resolved successfully!', 'success');
+              } catch (promiseError) {
+                addDebugLog('ready() promise rejected: ' + promiseError.message, 'error');
+                throw promiseError;
+              }
+            } else {
+              addDebugLog('ready() returned: ' + (result !== undefined ? result : 'undefined (sync)'), 'info');
+            }
+            
             window.farcasterSDK.readySent = true;
             readyCalled = true;
             addDebugLog('Failsafe REAL SDK ready() called successfully!', 'success');
-            addDebugLog('ready() returned: ' + (result !== undefined ? result : 'undefined'), 'info');
             console.log("Farcaster ready() called (failsafe - REAL SDK)", result);
             
             // Verify after a moment
             setTimeout(function() {
-              addDebugLog('Post-ready check: If blue screen still shows, ready() may not be working', 'warning');
+              addDebugLog('Post-ready check: Blue screen should disappear now', 'info');
             }, 500);
             return true;
           } catch (e) {
@@ -342,28 +381,42 @@
           else if (!window.farcasterSDK.loaded) reason = 'SDK not loaded yet';
           else if (window.farcasterSDK.readySent) reason = 'ready() already sent';
           else if (!window.farcasterSDK.actions?.ready) reason = 'ready() function not available';
+          else if (!unityLoaded) reason = 'Unity not loaded yet';
           
           addDebugLog('Failsafe: Cannot call ready() - ' + reason, 'warning');
           return false;
         }
       };
 
-      // Call ready after Unity instance is created
-      if (window.unityInstance) {
-        addDebugLog('Unity instance exists, scheduling ready() call...', 'info');
-        setTimeout(callReady, 500);
-      }
+      // Watch for Unity instance and call ready() when it's available
+      var unityCheckInterval = setInterval(function() {
+        if (window.unityInstance && !readyCalled) {
+          clearInterval(unityCheckInterval);
+          addDebugLog('Unity instance detected, calling ready()...', 'info');
+          setTimeout(function() {
+            callReady();
+          }, 500);
+        }
+      }, 100);
 
-      // Critical: Call ready() after 3 seconds max to prevent infinite blue screen on mobile
+      // Critical: Call ready() after 15 seconds max (increased to wait for Unity)
+      // But only if Unity has loaded
       setTimeout(function() {
+        clearInterval(unityCheckInterval);
         if (!readyCalled) {
-          addDebugLog('TIMEOUT: Calling ready() to prevent blue screen!', 'warning');
-          console.warn("Calling Farcaster ready() after timeout to prevent blue screen");
-          callReady();
+          if (window.unityInstance) {
+            addDebugLog('TIMEOUT: Unity loaded, calling ready() to prevent blue screen!', 'warning');
+            console.warn("Calling Farcaster ready() after timeout (Unity is loaded)");
+            callReady();
+          } else {
+            addDebugLog('TIMEOUT: Unity not loaded yet, but calling ready() anyway...', 'warning');
+            console.warn("Calling Farcaster ready() after timeout (Unity not loaded)");
+            callReady();
+          }
         } else {
           addDebugLog('Timeout reached but ready() already called', 'info');
         }
-      }, 3000);
+      }, 15000); // Increased to 15 seconds to wait for Unity
       
       // Periodic status check for debugging
       if (isMobile) {
