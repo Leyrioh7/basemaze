@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "public": true,
+  "public": "public",
   "builds": [
     { "src": "index.html", "use": "@vercel/static" },
     { "src": "Build/**", "use": "@vercel/static" },
@@ -12,7 +12,7 @@
       "dest": "/Build/$1"
     },
     {
-      "src": "/\\.well-known/(.*)",
+      "src": "^/\\.well-known/(.*)$",
       "dest": "/public/.well-known/$1",
       "headers": {
         "Cache-Control": "public, max-age=0, must-revalidate"
@@ -22,9 +22,5 @@
       "src": "/(.*)",
       "dest": "/index.html"
     }
-  ],
-  "mimeTypes": {
-    ".wasm": "application/wasm",
-    ".unityweb": "application/octet-stream"
-  }
+  ]
 }
