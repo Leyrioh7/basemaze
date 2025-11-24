@@ -2,10 +2,15 @@
   "version": 2,
   "public": true,
   "builds": [
+    { "src": "index.html", "use": "@vercel/static" },
     { "src": "Build/**", "use": "@vercel/static" },
     { "src": "public/**", "use": "@vercel/static" }
   ],
   "routes": [
+    {
+      "src": "^/Build/(.*)$",
+      "dest": "/Build/$1"
+    },
     {
       "src": "/\\.well-known/(.*)",
       "dest": "/public/.well-known/$1",
@@ -15,7 +20,11 @@
     },
     {
       "src": "/(.*)",
-      "dest": "/Build/$1"
+      "dest": "/index.html"
     }
-  ]
+  ],
+  "mimeTypes": {
+    ".wasm": "application/wasm",
+    ".unityweb": "application/octet-stream"
+  }
 }

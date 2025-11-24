@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+  <meta charset="utf-8">
+  <title>Basemaze</title>
+
+  <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no">
+
+  <link rel="stylesheet" href="TemplateData/style.css">
+  <link rel="shortcut icon" href="TemplateData/favicon.ico">
+
+  <!-- Unity Preload -->
+  <link rel="preload" href="Build/WebGL.loader.js" as="script">
+  <link rel="preload" href="Build/WebGL.framework.js.unityweb" as="fetch" crossorigin>
+  <link rel="preload" href="Build/WebGL.data.unityweb" as="fetch" crossorigin>
+  <link rel="preload" href="Build/WebGL.wasm.unityweb" as="fetch" crossorigin>
+
+  <!-- Farcaster Mini App SDK Loader -->
+  <script>
+    window.farcasterReady = () => {
+      try {
+        const sdk = window.farcasterSDK || window.farcaster;
+        if (sdk?.actions?.ready) {
+          sdk.actions.ready();
+          console.log("Farcaster ready() sent");
+        }
+      } catch (e) {
+        console.warn("farcasterReady error:", e);
+      }
+    };
+
+    (async () => {
+      const moduleURL = "https://miniapp-sdk.farcaster.xyz/sdk.js";
+      const fallbackURL = "https://miniapp-sdk.farcaster.xyz/sdk.umd.js";
+
+      try {
+        const module = await import(moduleURL);
+        const SDK = module.FarcasterSDK || module.default;
+        window.farcasterSDK = new SDK();
+        console.log("Farcaster SDK (module) loaded");
+        return;
+      } catch (e) {
+        console.warn("Module load failed:", e);
+      }
+
+      // fallback loader
+      try {
+        await new Promise((resolve, reject) => {
+          const s = document.createElement("script");
+          s.src = fallbackURL;
+          s.onload = resolve;
+          s.onerror = reject;
+          document.head.appendChild(s);
+        });
+
+        if (window.FarcasterSDK)
+          window.farcasterSDK = new window.FarcasterSDK();
+        else if (window.farcaster)
+          window.farcasterSDK = window.farcaster;
+
+        console.log("Farcaster SDK (fallback) loaded");
+      } catch (e) {
+        console.error("Farcaster SDK fully failed:", e);
+      }
+    })();
+  </script>
+
+</head>
+
+<body>
+
+  <div id="unity-container" class="unity-desktop">
+    <canvas id="unity-canvas" tabindex="-1"></canvas>
+
+    <div id="unity-loading-bar">
+      <div id="unity-logo"></div>
+      <div id="unity-loading-text">Loading…</div>
+
+      <div id="unity-progress-bar-empty">
+        <div id="unity-progress-bar-full"></div>
+      </div>
+
+      <div id="unity-progress-text">0%</div>
+    </div>
+
+    <div id="unity-warning"></div>
+  </div>
+
+  <script>
+    const canvas = document.querySelector("#unity-canvas");
+    const loadingBar = document.querySelector("#unity-loading-bar");
+    const progressBar = document.querySelector("#unity-progress-bar-full");
+    const progressText = document.querySelector("#unity-progress-text");
+
+    function unityShowBanner(msg, type) {
+      const banner = document.querySelector("#unity-warning");
+      const div = document.createElement("div");
+      div.innerHTML = msg;
+      div.style = (type === "error")
+        ? "background:red;padding:10px;"
+        : "background:yellow;padding:10px;";
+      banner.appendChild(div);
+      if (type !== "error") setTimeout(() => div.remove(), 5000);
+    }
+
+    const config = {
+      dataUrl: "Build/WebGL.data.unityweb",
+      frameworkUrl: "Build/WebGL.framework.js.unityweb",
+      codeUrl: "Build/WebGL.wasm.unityweb",
+      streamingAssetsUrl: "StreamingAssets",
+      companyName: "DefaultCompany",
+      productName: "Basemaze",
+      productVersion: "1.0",
+      showBanner: unityShowBanner
+    };
+
+    // Mobile adjustments
+    if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+      document.querySelector("#unity-container").classList.add("unity-mobile");
+      canvas.classList.add("unity-mobile");
+      config.devicePixelRatio = 1;
+    }
+
+    // Load Unity
+    const loader = document.createElement("script");
+    loader.src = "Build/WebGL.loader.js";
+
+    loader.onload = () => {
+      createUnityInstance(canvas, config, progress => {
+        const pct = Math.floor(progress * 100);
+        progressBar.style.width = pct + "%";
+        progressText.innerText = pct + "%";
+      })
+      .then(instance => {
+        window.unityInstance = instance;
+        loadingBar.style.display = "none";
+
+        setTimeout(() => {
+          if (window.farcasterReady) window.farcasterReady();
+        }, 250);
+      })
+      .catch(err => {
+        console.error(err);
+        unityShowBanner(err, "error");
+      });
+    };
+
+    loader.onerror = () => unityShowBanner("Failed to load Unity loader script", "error");
+    document.body.appendChild(loader);
+
+  </script>
+</body>
+</html>
