@@ -1,0 +1,41 @@
+name: Deploy committed Build/ to Vercel
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy Build/ to Vercel
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: List Build folder (debug)
+        run: |
+          echo "Listing Build/ contents"
+          ls -la Build || true
+
+      - name: Install Vercel CLI
+        run: npm i -g vercel
+
+      - name: Deploy to Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          if [ -z "$VERCEL_TOKEN" ]; then echo "Missing VERCEL_TOKEN secret"; exit 1; fi
+          # Use the repo .vercelignore so only Build/ and vercel.json are uploaded
+          vercel --prod --token "$VERCEL_TOKEN" --confirm
+
+# Requirements:
+# - Add a repository secret named VERCEL_TOKEN with a Vercel personal token that can deploy the project.
+# - Ensure the Build/ folder is committed to the branch (main) you push.

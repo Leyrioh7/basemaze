@@ -1,0 +1,69 @@
+name: Build WebGL and Deploy to Vercel
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    env:
+      # Update this to the Unity editor version you use (or set as a repository variable)
+      UNITY_VERSION: '2021.3.0f1'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build WebGL with game-ci/unity-builder
+        uses: game-ci/unity-builder@v2
+        with:
+          unityVersion: ${{ env.UNITY_VERSION }}
+          targetPlatform: WebGL
+          buildName: Build
+        env:
+          # Provide your Unity license file contents as the secret named UNITY_LICENSE
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+
+      - name: Locate and copy build output to repo root Build/
+        run: |
+          echo "Detecting build output..."
+          # The builder may place output in ./build or ./build/* depending on configuration.
+          mkdir -p Build
+          # Try common locations and copy into ./Build
+          if [ -d build ]; then
+            echo "copying from ./build"
+            cp -r build/*/* Build/ 2>/dev/null || cp -r build/* Build/ 2>/dev/null || true
+          fi
+          if [ -d Builds ]; then
+            echo "copying from ./Builds"
+            cp -r Builds/* Build/ 2>/dev/null || true
+          fi
+          if [ -d build/Build ]; then
+            echo "copying from build/Build"
+            cp -r build/Build/* Build/ 2>/dev/null || true
+          fi
+          if [ -d UnityBuild ]; then
+            echo "copying from UnityBuild"
+            cp -r UnityBuild/* Build/ 2>/dev/null || true
+          fi
+          echo "Build/ contents:"; ls -la Build || true
+
+      - name: Install Vercel CLI and Deploy
+        run: |
+          npm i -g vercel
+          # Use the local .vercelignore to upload only Build/ and vercel.json
+          vercel --prod --token $VERCEL_TOKEN --confirm
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+    # Recommended secrets for this workflow:
+    # - UNITY_LICENSE: the Unity license file contents (string) created from your editor activation step
+    # - VERCEL_TOKEN: a Vercel token with access to deploy the project
