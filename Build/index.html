@@ -4,7 +4,10 @@
 <head>
   <meta charset="utf-8">
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-  <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no">
+
+  <!-- Keep viewport tight to avoid zooming/layout shifts in embedded WebViews -->
+  <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="format-detection" content="telephone=no">
   <title>Unity Web Player | Basemaze</title>
 
   <link rel="shortcut icon" href="TemplateData/favicon.ico">
@@ -16,54 +19,89 @@
   <link rel="preload" href="Build/WebGL.data.unityweb" as="fetch" crossorigin>
   <link rel="preload" href="Build/WebGL.wasm.unityweb" as="fetch" crossorigin>
 
-  <!-- Farcaster SDK Loader -->
+  <!-- Farcaster SDK Loader (unchanged) -->
   <script>
-    (async function loadFarcasterSDK() {
-      const sdkUrlModule = "https://miniapp-sdk.farcaster.xyz/sdk.js";
-      const sdkUrlScript = "https://miniapp-sdk.farcaster.xyz/sdk.umd.js";
+    window.farcasterSDK = null;
+    window.farcasterReadySent = false;
 
-      window.farcasterReady = function () {
-        try {
-          const sdkObj = window.farcasterSDK || window.farcaster;
-          if (sdkObj?.actions?.ready) {
-            sdkObj.actions.ready();
-            console.log("window.farcasterReady() called");
-          }
-        } catch (e) {
-          console.warn("ready() error:", e);
-        }
-      };
+    function sendFarcasterReady() {
+      if (!window.farcasterSDK?.actions?.ready) return;
+      if (window.farcasterReadySent) return;
+
+      window.farcasterReadySent = true;
+      window.farcasterSDK.actions.ready();
+      console.log("[Farcaster] ready() sent");
+    }
+
+    async function loadFarcasterSDK() {
+      const ESM = "https://miniapp-sdk.farcaster.xyz/sdk.js";
+      const UMD = "https://miniapp-sdk.farcaster.xyz/sdk.umd.js";
 
       try {
-        const module = await import(sdkUrlModule);
-        const FarcasterSDK = module.FarcasterSDK || module.default;
-        window.farcasterSDK = new FarcasterSDK();
-        console.log("SDK loaded (module)");
+        const module = await import(ESM);
+        const SDK = module.FarcasterSDK || module.default;
+        window.farcasterSDK = new SDK();
+        console.log("[Farcaster] SDK loaded (ESM)");
         return;
       } catch (e) {
-        console.warn("Module load failed:", e);
+        console.warn("[Farcaster] ESM load failed:", e);
       }
 
       try {
-        await new Promise((resolve, reject) => {
+        await new Promise((res, rej) => {
           const s = document.createElement("script");
-          s.src = sdkUrlScript;
-          s.onload = resolve;
-          s.onerror = reject;
+          s.src = UMD;
+          s.onload = res;
+          s.onerror = rej;
           document.head.appendChild(s);
         });
 
-        if (window.FarcasterSDK) window.farcasterSDK = new window.FarcasterSDK();
-        if (!window.farcasterSDK && window.farcaster) window.farcasterSDK = window.farcaster;
+        if (window.FarcasterSDK) {
+          window.farcasterSDK = new window.FarcasterSDK();
+        } else if (window.farcaster) {
+          window.farcasterSDK = window.farcaster;
+        }
 
-        console.log("SDK loaded (fallback)");
+        console.log("[Farcaster] SDK loaded (UMD)");
       } catch (e) {
-        console.error("SDK fallback failed:", e);
+        console.error("[Farcaster] Failed to load SDK:", e);
       }
-    })();
+    }
+
+    loadFarcasterSDK();
   </script>
 
   <script src="TemplateData/ready.js"></script>
+
+  <style>
+    /* Ensure the canvas occupies the container fully to avoid reflow and context loss */
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: black;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+    }
+    #unity-container {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      background: black;
+    }
+    canvas#unity-canvas {
+      width: 100% !important;
+      height: 100% !important;
+      display: block;
+      touch-action: none; /* prevent double-tap zoom and scrolling */
+      outline: none;
+    }
+    /* Keep your loading UI visible over canvas */
+    #unity-loading-bar { z-index: 9999; }
+  </style>
 </head>
 
 <body>
@@ -89,9 +127,16 @@
   </div>
 
   <script>
-    // Errors
-    window.addEventListener("error", e => console.warn("Error:", e.message));
-    window.addEventListener("unhandledrejection", e => console.warn("Promise rejection:", e.reason));
+    // More robust logging for mobile WebViews:
+    window.addEventListener("error", e => {
+      console.warn("Error:", e.message, e.filename, e.lineno, e.colno);
+      // show banner for quick visibility in mini-app
+      unityShowBanner("Error: " + (e.message || "unknown error"), "error");
+    });
+    window.addEventListener("unhandledrejection", e => {
+      console.warn("Promise rejection:", e.reason);
+      unityShowBanner("Promise rejection: " + String(e.reason), "error");
+    });
 
     var canvas = document.querySelector("#unity-canvas");
 
@@ -100,10 +145,28 @@
       var div = document.createElement("div");
       div.innerHTML = msg;
       div.style = (type === "error")
-        ? "background: red; padding: 10px;"
-        : "background: yellow; padding: 10px;";
+        ? "background: rgba(200,30,30,0.95); color: white; padding: 10px; margin: 6px; border-radius: 6px;"
+        : "background: rgba(255,210,0,0.95); color: black; padding: 8px; margin: 6px; border-radius: 6px;";
       warningBanner.appendChild(div);
-      if (type !== "error") setTimeout(() => div.remove(), 5000);
+      if (type !== "error") setTimeout(() => div.remove(), 6000);
+    }
+
+    // Capability detection: WebGL + WASM
+    function supportsWebGL() {
+      try {
+        const canvas = document.createElement('canvas');
+        return !!(window.WebGLRenderingContext && (canvas.getContext('webgl') || canvas.getContext('experimental-webgl')));
+      } catch (e) {
+        return false;
+      }
+    }
+    function supportsWasm() {
+      return typeof WebAssembly === "object";
+    }
+
+    if (!supportsWebGL() || !supportsWasm()) {
+      unityShowBanner("This embedded browser does not support WebGL or WebAssembly. Try opening in a full browser.", "error");
+      console.warn("Missing WebGL/WASM support:", supportsWebGL(), supportsWasm());
     }
 
     var buildUrl = "Build";
@@ -120,12 +183,15 @@
       productVersion: "1.0",
       showBanner: unityShowBanner,
       matchWebGLToCanvasSize: true
+      // DO NOT add custom memory keys here — change memory in Unity build settings instead
     };
 
     if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
       document.querySelector("#unity-container").className = "unity-mobile";
       canvas.className = "unity-mobile";
+      // keep devicePixelRatio low in embedded webviews
       config.devicePixelRatio = 1;
+      // Also try disabling preserveDrawingBuffer for mobile contexts (if set in project)
     }
 
     var loadingBar = document.querySelector("#unity-loading-bar");
@@ -136,8 +202,11 @@
 
     var script = document.createElement("script");
     script.src = loaderUrl;
+    script.crossOrigin = "anonymous";
 
     script.onload = () => {
+      // Hook into Unity's logging API if possible to surface low-level errors:
+      // createUnityInstance returns a Promise which resolves to unityInstance
       createUnityInstance(canvas, config, progress => {
         var percent = Math.floor(progress * 100);
         progressBar.style.width = percent + "%";
@@ -147,14 +216,44 @@
           window.unityInstance = unityInstance;
           loadingBar.style.display = "none";
 
-          // Send ready AFTER Unity loads
-          setTimeout(() => {
-            if (window.farcasterReady) window.farcasterReady();
-          }, 300);
+          // If the loader sets Module, try to funnel its stderr to the banner/console
+          try {
+            const Module = unityInstance.Module || window.Module;
+            if (Module) {
+              // If Module.printErr exists, forward errors to our banner for visibility
+              if (Module.printErr) {
+                const origErr = Module.printErr;
+                Module.printErr = function(...args) {
+                  console.error(...args);
+                  try { unityShowBanner(String(args.join(' ')), "error"); } catch(e) {}
+                  return origErr.apply(this, args);
+                };
+              }
+              // Optional: forward normal prints to console (helpful for debug builds)
+              if (Module.print) {
+                const origPrint = Module.print;
+                Module.print = function(...args) {
+                  console.log(...args);
+                  return origPrint.apply(this, args);
+                };
+              }
+            }
+          } catch (e) {
+            console.warn("Failed to patch Module logging:", e);
+          }
+
+          // Unity loaded → Now safely send Farcaster ready()
+          sendFarcasterReady();
         })
         .catch(err => {
-          console.error(err);
-          unityShowBanner("Unity failed: " + err, "error");
+          console.error("createUnityInstance failed:", err);
+          // Better error messaging: check for likely memory failure text
+          const msg = String(err);
+          if (/memory|out of memory|Unable to allocate|OOM/i.test(msg)) {
+            unityShowBanner("Unity failed to initialize: likely out-of-memory in the embedded browser. Rebuild with lower WebGL memory (Initial 128MB / Max 512MB) and linear growth.", "error");
+          } else {
+            unityShowBanner("Unity failed: " + msg, "error");
+          }
         });
     };
 
@@ -163,16 +262,8 @@
     };
 
     document.body.appendChild(script);
-
-    // Failsafe every 500ms
-    setInterval(() => {
-      if (window.farcasterSDK?.actions?.ready && !window.farcasterSDK.readySent) {
-        window.farcasterSDK.actions.ready();
-        window.farcasterSDK.readySent = true;
-        console.log("Failsafe ready() fired");
-      }
-    }, 500);
   </script>
 
 </body>
+
 </html>
