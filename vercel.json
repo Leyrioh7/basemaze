@@ -1,26 +1,50 @@
 {
   "version": 2,
-  "public": "public",
+  "public": true,
+
+  "routes": [
+    {
+      "src": "/(.*\\.wasm\\.unityweb)",
+      "headers": {
+        "Content-Type": "application/wasm",
+        "Content-Encoding": "br",
+        "Cross-Origin-Embedder-Policy": "require-corp",
+        "Cross-Origin-Opener-Policy": "same-origin"
+      }
+    },
+    {
+      "src": "/(.*\\.data\\.unityweb)",
+      "headers": {
+        "Content-Type": "application/octet-stream",
+        "Content-Encoding": "br",
+        "Cross-Origin-Embedder-Policy": "require-corp",
+        "Cross-Origin-Opener-Policy": "same-origin"
+      }
+    },
+    {
+      "src": "/(.*\\.framework\\.js\\.unityweb)",
+      "headers": {
+        "Content-Type": "application/javascript",
+        "Content-Encoding": "br",
+        "Cross-Origin-Embedder-Policy": "require-corp",
+        "Cross-Origin-Opener-Policy": "same-origin"
+      }
+    },
+    {
+      "src": "/(.*)",
+      "headers": {
+        "Content-Security-Policy": "frame-ancestors *",
+        "Cross-Origin-Embedder-Policy": "require-corp",
+        "Cross-Origin-Opener-Policy": "same-origin"
+      }
+    }
+  ],
+
   "builds": [
     { "src": "index.html", "use": "@vercel/static" },
     { "src": "Build/**", "use": "@vercel/static" },
     { "src": "public/**", "use": "@vercel/static" }
   ],
-  "routes": [
-    {
-      "src": "^/Build/(.*)$",
-      "dest": "/Build/$1"
-    },
-    {
-      "src": "^/\\.well-known/(.*)$",
-      "dest": "/public/.well-known/$1",
-      "headers": {
-        "Cache-Control": "public, max-age=0, must-revalidate"
-      }
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
-    }
-  ]
+
+  "cleanUrls": true
 }
