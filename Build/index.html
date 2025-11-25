@@ -5,23 +5,13 @@
   <meta charset="utf-8">
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 
-  <!-- Safe CSP for Unity WebGL + Farcaster Miniapps -->
+  <!-- REQUIRED: Allow Unity + WASM to run inside Farcaster Frames -->
   <meta http-equiv="Content-Security-Policy" content="
-    default-src 'self';
-    script-src 'self' 'unsafe-inline' 'unsafe-eval' https://miniapps.farcaster.xyz;
-    connect-src 'self'
-      https://miniapps.farcaster.xyz
-      https://explorer-api.walletconnect.com
-      https://pulse.walletconnect.org
-      https://warpcast.com
-      https://farcaster.xyz
-      https://*.vercel.app
-      https:;
-    img-src 'self' data: blob:;
-    style-src 'self' 'unsafe-inline';
-    worker-src blob:;
-    media-src *;
-    frame-src *;
+    default-src * blob: data: 'unsafe-inline' 'unsafe-eval';
+    script-src * blob: data: 'unsafe-inline' 'unsafe-eval';
+    img-src * blob: data:;
+    style-src * 'unsafe-inline';
+    frame-ancestors *;
   ">
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
@@ -31,25 +21,25 @@
   <link rel="shortcut icon" href="TemplateData/favicon.ico">
   <link rel="stylesheet" href="TemplateData/style.css">
 
-  <!-- Preload Unity resources -->
+  <!-- Preload Brotli-compressed Unity files -->
   <link rel="preload" href="Build/WebGL.loader.js" as="script">
-  <link rel="preload" href="Build/WebGL.framework.js.unityweb" as="fetch" crossorigin>
-  <link rel="preload" href="Build/WebGL.data.unityweb" as="fetch" crossorigin>
-  <link rel="preload" href="Build/WebGL.wasm.unityweb" as="fetch" crossorigin>
+  <link rel="preload" href="Build/WebGL.framework.js.br" as="fetch" crossorigin>
+  <link rel="preload" href="Build/WebGL.data.br" as="fetch" crossorigin>
+  <link rel="preload" href="Build/WebGL.wasm.br" as="fetch" crossorigin>
 
-  <!-- Load Farcaster Miniapp SDK (UMD version only – safe for Unity WebGL) -->
+  <!-- Farcaster Miniapp SDK (UMD version recommended for WebGL/Unity) -->
   <script src="https://miniapps.farcaster.xyz/sdk.umd.js"></script>
 
   <script>
-    // Initialize Farcaster immediately when loaded
+    // Initialize Farcaster SDK
     window.farcasterSDK = null;
 
     function initFarcaster() {
       if (window.FarcasterSDK) {
         window.farcasterSDK = new window.FarcasterSDK();
-        console.log("[Farcaster] UMD SDK loaded");
+        console.log("[Farcaster] SDK loaded (UMD)");
       } else {
-        console.error("[Farcaster] SDK failed to attach to window");
+        console.error("[Farcaster] Failed to attach SDK to window");
       }
     }
 
@@ -91,22 +81,24 @@
     var canvas = document.querySelector("#unity-canvas");
 
     function unityShowBanner(msg, type) {
-      var warningBanner = document.querySelector("#unity-warning");
-      var div = document.createElement("div");
+      const warningBanner = document.getElementById("unity-warning");
+      const div = document.createElement("div");
       div.innerHTML = msg;
+
       div.style =
         type === "error"
           ? "background: rgba(200,30,30,0.95); color: white; padding: 10px; margin: 6px; border-radius: 6px;"
           : "background: rgba(255,210,0,0.95); color: black; padding: 8px; margin: 6px; border-radius: 6px;";
+
       warningBanner.appendChild(div);
       if (type !== "error") setTimeout(() => div.remove(), 6000);
     }
 
-    var buildUrl = "Build";
-    var config = {
-      dataUrl: buildUrl + "/WebGL.data.unityweb",
-      frameworkUrl: buildUrl + "/WebGL.framework.js.unityweb",
-      codeUrl: buildUrl + "/WebGL.wasm.unityweb",
+    const buildUrl = "Build";
+    const config = {
+      dataUrl: buildUrl + "/WebGL.data.br",
+      frameworkUrl: buildUrl + "/WebGL.framework.js.br",
+      codeUrl: buildUrl + "/WebGL.wasm.br",
       streamingAssetsUrl: "StreamingAssets",
       companyName: "DefaultCompany",
       productName: "Basemaze",
@@ -115,7 +107,7 @@
       matchWebGLToCanvasSize: true,
     };
 
-    var loaderScript = document.createElement("script");
+    const loaderScript = document.createElement("script");
     loaderScript.src = buildUrl + "/WebGL.loader.js";
     loaderScript.crossOrigin = "anonymous";
 
@@ -128,7 +120,7 @@
           window.unityInstance = unityInstance;
           document.getElementById("unity-loading-bar").style.display = "none";
 
-          // Now Unity is ready, notify Farcaster
+          // Unity is fully loaded → notify Farcaster
           sendFarcasterReady();
         })
         .catch(err => {
@@ -144,4 +136,5 @@
   </script>
 
 </body>
+
 </html>
