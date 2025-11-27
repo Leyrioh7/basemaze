@@ -18,10 +18,15 @@
     "webhookUrl": "https://basemazee.vercel.app/api/webhook",
     "subtitle": "PacMon on Base",
     "description": "Experience Gaming like no other",
+    "screenshotUrls": [
+      "https://ik.imagekit.io/defidrey/BaseMaze/screen1.jpg",
+      "https://ik.imagekit.io/defidrey/BaseMaze/Screen2.jpg",
+      "https://ik.imagekit.io/defidrey/BaseMaze/Screen3.jpg"
+    ],
     "primaryCategory": "games",
     "tags": ["games"],
     "heroImageUrl": "https://ik.imagekit.io/defidrey/BaseMaze/BaseMaze%20Hero.jpg",
-    "tagline": "The ultimate play-to-earn experience",
+    "tagline": "PacMon on Base",
     "ogTitle": "BaseMaze",
     "ogDescription": "PacMon reimagined on Base Blockchain",
     "ogImageUrl": "https://ik.imagekit.io/defidrey/BaseMaze/BaseMaze%20Hero.jpg",
