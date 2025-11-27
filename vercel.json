@@ -6,7 +6,7 @@
     { "src": "index.html", "use": "@vercel/static" },
     { "src": "Build/**", "use": "@vercel/static" },
     { "src": "public/**", "use": "@vercel/static" },
-    {"src": "TemplateData/**", "use": "@vercel/static" },
+    { "src": "TemplateData/**", "use": "@vercel/static" },
     { "src": ".well-known/**", "use": "@vercel/static" }
   ],
 
@@ -34,6 +34,14 @@
       "headers": [
         { "key": "Content-Type", "value": "application/javascript" },
         { "key": "Content-Encoding", "value": "br" },
+        { "key": "Cross-Origin-Embedder-Policy", "value": "require-corp" },
+        { "key": "Cross-Origin-Opener-Policy", "value": "same-origin" }
+      ]
+    },
+    {
+      "source": "/Build/(.*).js",
+      "headers": [
+        { "key": "Content-Type", "value": "application/javascript" },
         { "key": "Cross-Origin-Embedder-Policy", "value": "require-corp" },
         { "key": "Cross-Origin-Opener-Policy", "value": "same-origin" }
       ]
