@@ -5,7 +5,8 @@
   "builds": [
     { "src": "index.html", "use": "@vercel/static" },
     { "src": "Build/**", "use": "@vercel/static" },
-    { "src": "public/**", "use": "@vercel/static" }
+    { "src": "public/**", "use": "@vercel/static" },
+    { "src": ".well-known/**", "use": "@vercel/static" }
   ],
 
   "headers": [
