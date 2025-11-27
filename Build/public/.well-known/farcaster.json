@@ -1,13 +1,10 @@
 {
 "accountAssociation": {
-    "header": "",
-    "payload": "",
-    "signature": ""
+    "header": "eyJmaWQiOjMyOTM3MCwidHlwZSI6ImN1c3RvZHkiLCJrZXkiOiIweDgxZUNlQjgzMDVlOTExODc4NjFBOTAyNzQ1OWRFM0M3RDY1MUJkNWYifQ",
+    "payload": "eyJkb21haW4iOiJiYXNlbWF6ZWUudmVyY2VsLmFwcCJ9",
+    "signature": "gOfDAoeaGwMYeTREu3m8Dslby+pNwY8ddjkHSQNQih1o1U0VIGbppIXBA7iDn7ch4wOdE2eF1+9PWthPzkXwKxs="
   },
-  "baseBuilder": {
-    "ownerAddress": "0x585B4C0532EA07317c8D8b6dd9e792Ed196891f1"
-  },
-  "miniapp": {
+  "frame": {
     "name": "Base Maze",
     "version": "1",
     "iconUrl": "https://basemazee.vercel.app/icon.png",
@@ -18,7 +15,6 @@
     "webhookUrl": "https://basemazee.vercel.app/api/webhook",
     "subtitle": "PacMon on Base",
     "description": "Experience Gaming like no other",
-    "primaryCategory": "games",
-    "noindex": true
+    "primaryCategory": "games"
   }
 }
