@@ -11,7 +11,7 @@
 
   "headers": [
     {
-      "source": "/Build/:file.wasm.br",
+      "source": "/Build/(.*).wasm.br",
       "headers": [
         { "key": "Content-Type", "value": "application/wasm" },
         { "key": "Content-Encoding", "value": "br" },
@@ -20,7 +20,7 @@
       ]
     },
     {
-      "source": "/Build/:file.data.br",
+      "source": "/Build/(.*).data.br",
       "headers": [
         { "key": "Content-Type", "value": "application/octet-stream" },
         { "key": "Content-Encoding", "value": "br" },
@@ -29,7 +29,7 @@
       ]
     },
     {
-      "source": "/Build/:file.framework.js.br",
+      "source": "/Build/(.*).framework.js.br",
       "headers": [
         { "key": "Content-Type", "value": "application/javascript" },
         { "key": "Content-Encoding", "value": "br" },
@@ -37,6 +37,7 @@
         { "key": "Cross-Origin-Opener-Policy", "value": "same-origin" }
       ]
     },
+
     {
       "source": "/(.*)",
       "headers": [
@@ -45,5 +46,9 @@
         { "key": "Cross-Origin-Opener-Policy", "value": "same-origin" }
       ]
     }
+  ],
+
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/$1" }
   ]
 }
