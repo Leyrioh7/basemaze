@@ -10,10 +10,10 @@
   "miniapp":{
     "name": "Base Maze",
     "version": "1",
-    "iconUrl": "https://basemazee.vercel.app/icon.png",
+    "iconUrl": "https://ik.imagekit.io/defidrey/BaseMaze/BsmzPfp.jpg",
     "homeUrl": "https://basemazee.vercel.app",
-    "imageUrl": "https://basemazee.vercel.app/image.png",
-    "splashImageUrl": "https://basemazee.vercel.app/splash.png",
+    "imageUrl": "https://ik.imagekit.io/defidrey/BaseMaze/BsmzPfp.jpg",
+    "splashImageUrl": "https://ik.imagekit.io/defidrey/BaseMaze/Splash.jpg",
     "splashBackgroundColor": "#0f0b88",
     "webhookUrl": "https://basemazee.vercel.app/api/webhook",
     "subtitle": "PacMon on Base",
