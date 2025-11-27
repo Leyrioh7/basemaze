@@ -20,6 +20,11 @@
     "description": "Experience Gaming like no other",
     "primaryCategory": "games",
     "tags": ["games"],
+    "heroImageUrl": "https://ik.imagekit.io/defidrey/BaseMaze/BaseMaze%20Hero.jpg",
+    "tagline": "The ultimate play-to-earn experience",
+    "ogTitle": "BaseMaze",
+    "ogDescription": "PacMon reimagined on Base Blockchain",
+    "ogImageUrl": "https://ik.imagekit.io/defidrey/BaseMaze/BaseMaze%20Hero.jpg",
     "noindex": true
   }
 }
