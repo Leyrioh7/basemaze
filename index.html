@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+
+  <!-- REQUIRED MiniApp embed metadata -->
+  <meta name="fc:miniapp" content='{
+    "version": "next",
+    "imageUrl": "https://ik.imagekit.io/defidrey/BaseMaze/BsmzPfp.jpg",
+    "button": {
+      "title": "Play Now",
+      "action": {
+        "type": "launch_miniapp",
+        "name": "BaseMaze",
+        "url": "https://basemazett.vercel.app"
+      }
+    }
+  }' />
+
+  <!-- REQUIRED: Allow Unity + WASM to run inside Farcaster Frames -->
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src * blob: data: 'unsafe-inline' 'unsafe-eval';
+    script-src * blob: data: 'unsafe-inline' 'unsafe-eval';
+    img-src * blob: data:;
+    style-src * 'unsafe-inline';
+    frame-ancestors *;
+  ">
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+
+  <title>Unity Web Player | Basemaze</title>
+
+  <link rel="shortcut icon" href="TemplateData/favicon.ico">
+  <link rel="stylesheet" href="TemplateData/style.css">
+
+  <!-- Preload GZIP-compressed Unity files (.unityweb) -->
+  <link rel="preload" href="Build/WebGL.loader.js" as="script">
+  <link rel="preload" href="Build/WebGL.framework.js.unityweb" as="fetch" crossorigin>
+  <link rel="preload" href="Build/WebGL.data.unityweb" as="fetch" crossorigin>
+  <link rel="preload" href="Build/WebGL.wasm.unityweb" as="fetch" crossorigin>
+
+  <!-- Farcaster Miniapp SDK (UMD version) -->
+  <script src="https://miniapps.farcaster.xyz/sdk.umd.js"></script>
+
+  <script>
+    // Initialize Farcaster SDK
+    window.farcasterSDK = null;
+
+    function initFarcaster() {
+      if (window.FarcasterSDK) {
+        window.farcasterSDK = new window.FarcasterSDK();
+        console.log("[Farcaster] SDK loaded (UMD)");
+      } else {
+        console.error("[Farcaster] Failed to attach SDK to window");
+      }
+    }
+
+    window.addEventListener("DOMContentLoaded", initFarcaster);
+
+    function sendFarcasterReady() {
+      if (window.farcasterSDK?.actions?.ready) {
+        window.farcasterSDK.actions.ready();
+        console.log("[Farcaster] ready() sent");
+      }
+    }
+  </script>
+
+</head>
+
+<body>
+  <div id="unity-container" class="unity-desktop">
+    <canvas id="unity-canvas" tabindex="-1"></canvas>
+
+    <div id="unity-loading-bar">
+      <div id="unity-logo"></div>
+      <div id="unity-loading-text">Loading...</div>
+      <div id="unity-progress-bar-empty">
+        <div id="unity-progress-bar-full"></div>
+      </div>
+      <div id="unity-progress-text">0%</div>
+    </div>
+
+    <div id="unity-warning"></div>
+
+    <div id="unity-footer">
+      <div id="unity-logo-title-footer"></div>
+      <div id="unity-fullscreen-button"></div>
+      <div id="unity-build-title">Basemaze</div>
+    </div>
+  </div>
+
+  <script>
+    var canvas = document.querySelector("#unity-canvas");
+
+    /* FIX — Prevent invalid canvas size (RenderPass error) */
+    function ensureCanvasSize() {
+      canvas.style.width = "100%";
+      canvas.style.height = "100%";
+
+      let w = canvas.clientWidth || 1;
+      let h = canvas.clientHeight || 1;
+
+      if (w > 16384 || h > 16384) {
+        console.warn("Invalid canvas size detected:", w, h, "→ resetting to 1×1");
+        w = 1;
+        h = 1;
+      }
+
+      canvas.width = w;
+      canvas.height = h;
+    }
+
+    function unityShowBanner(msg, type) {
+      const warningBanner = document.getElementById("unity-warning");
+      const div = document.createElement("div");
+      div.innerHTML = msg;
+
+      div.style =
+        type === "error"
+          ? "background: rgba(200,30,30,0.95); color: white; padding: 10px; margin: 6px; border-radius: 6px;"
+          : "background: rgba(255,210,0,0.95); color: black; padding: 8px; margin: 6px; border-radius: 6px;";
+
+      warningBanner.appendChild(div);
+      if (type !== "error") setTimeout(() => div.remove(), 6000);
+    }
+
+    const buildUrl = "Build";
+    const config = {
+      dataUrl: buildUrl + "/WebGL.data.unityweb",
+      frameworkUrl: buildUrl + "/WebGL.framework.js.unityweb",
+      codeUrl: buildUrl + "/WebGL.wasm.unityweb",
+      streamingAssetsUrl: "StreamingAssets",
+      companyName: "DefaultCompany",
+      productName: "Basemaze",
+      productVersion: "1.0",
+      showBanner: unityShowBanner,
+      matchWebGLToCanvasSize: true,
+    };
+
+    const loaderScript = document.createElement("script");
+    loaderScript.src = buildUrl + "/WebGL.loader.js";
+    loaderScript.crossOrigin = "anonymous";
+
+    loaderScript.onload = () => {
+      ensureCanvasSize();  // KEEP FIX
+
+      createUnityInstance(canvas, config, progress => {
+        const pct = Math.floor(progress * 100);
+
+        document.getElementById("unity-progress-bar-full").style.width = pct + "%";
+        document.getElementById("unity-progress-text").textContent = pct + "%";
+      })
+        .then(unityInstance => {
+          window.unityInstance = unityInstance;
+          document.getElementById("unity-loading-bar").style.display = "none";
+
+          // Unity is fully loaded → notify Farcaster
+          sendFarcasterReady();
+        })
+        .catch(err => {
+          unityShowBanner("Unity failed: " + err, "error");
+        });
+    };
+
+    loaderScript.onerror = () => {
+      unityShowBanner("Failed to load WebGL.loader.js", "error");
+    };
+
+    document.body.appendChild(loaderScript);
+  </script>
+
+</body>
+
+</html>
