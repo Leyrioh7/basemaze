@@ -35,13 +35,13 @@
   <link rel="shortcut icon" href="TemplateData/favicon.ico">
   <link rel="stylesheet" href="TemplateData/style.css">
 
-  <!-- Preload Brotli-compressed Unity files -->
+  <!-- Preload GZIP-compressed Unity files (.unityweb) -->
   <link rel="preload" href="Build/WebGL.loader.js" as="script">
-  <link rel="preload" href="Build/WebGL.framework.js.br" as="fetch" crossorigin>
-  <link rel="preload" href="Build/WebGL.data.br" as="fetch" crossorigin>
-  <link rel="preload" href="Build/WebGL.wasm.br" as="fetch" crossorigin>
+  <link rel="preload" href="Build/WebGL.framework.js.unityweb" as="fetch" crossorigin>
+  <link rel="preload" href="Build/WebGL.data.unityweb" as="fetch" crossorigin>
+  <link rel="preload" href="Build/WebGL.wasm.unityweb" as="fetch" crossorigin>
 
-  <!-- Farcaster Miniapp SDK (UMD version recommended for WebGL/Unity) -->
+  <!-- Farcaster Miniapp SDK (UMD version) -->
   <script src="https://miniapps.farcaster.xyz/sdk.umd.js"></script>
 
   <script>
@@ -110,9 +110,9 @@
 
     const buildUrl = "Build";
     const config = {
-      dataUrl: buildUrl + "/WebGL.data.br",
-      frameworkUrl: buildUrl + "/WebGL.framework.js.br",
-      codeUrl: buildUrl + "/WebGL.wasm.br",
+      dataUrl: buildUrl + "/WebGL.data.unityweb",
+      frameworkUrl: buildUrl + "/WebGL.framework.js.unityweb",
+      codeUrl: buildUrl + "/WebGL.wasm.unityweb",
       streamingAssetsUrl: "StreamingAssets",
       companyName: "DefaultCompany",
       productName: "Basemaze",

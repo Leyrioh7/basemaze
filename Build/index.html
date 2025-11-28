@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-  
+
   <!-- REQUIRED MiniApp embed metadata -->
   <meta name="fc:miniapp" content='{
     "version": "next",
@@ -18,23 +18,14 @@
     }
   }' />
 
-  <!-- Minimal safe CSP for Unity WebGL + Farcaster Mini-App -->
+  <!-- Minimal safe CSP for Unity + Farcaster -->
   <meta http-equiv="Content-Security-Policy" content="
     default-src 'self';
     script-src 'self' 'unsafe-inline' 'unsafe-eval' https://miniapps.farcaster.xyz;
-    connect-src 'self'
-      https://miniapps.farcaster.xyz
-      https://explorer-api.walletconnect.com
-      https://pulse.walletconnect.org
-      https://warpcast.com
-      https://farcaster.xyz
-      https://privy.farcaster.xyz
-      https://*.vercel.app
-      https:;
+    connect-src 'self' https://*.vercel.app https://miniapps.farcaster.xyz https: blob:;
     img-src 'self' data: blob:;
     style-src 'self' 'unsafe-inline';
     worker-src blob:;
-    media-src *;
     frame-src *;
   ">
 
@@ -44,17 +35,17 @@
   <link rel="shortcut icon" href="TemplateData/favicon.ico" />
   <link rel="stylesheet" href="TemplateData/style.css" />
 
-  <!-- Preload Unity (Brotli compressed) -->
+  <!-- Preload Unity GZIP (.unityweb) -->
   <link rel="preload" href="Build/WebGL.loader.js" as="script" />
-  <link rel="preload" href="Build/WebGL.framework.js.br" as="fetch" crossorigin />
-  <link rel="preload" href="Build/WebGL.data.br" as="fetch" crossorigin />
-  <link rel="preload" href="Build/WebGL.wasm.br" as="fetch" crossorigin />
+  <link rel="preload" href="Build/WebGL.framework.js.unityweb" as="fetch" crossorigin />
+  <link rel="preload" href="Build/WebGL.data.unityweb" as="fetch" crossorigin />
+  <link rel="preload" href="Build/WebGL.wasm.unityweb" as="fetch" crossorigin />
 
-  <!-- Load Farcaster Miniapps SDK (UMD) -->
+  <!-- Farcaster Miniapp SDK -->
   <script src="https://miniapps.farcaster.xyz/sdk.umd.js"></script>
 
   <script>
-    // --- Mini-App SDK bootstrap & Unity bridge -------------------------------------------------
+    // ------------------ Farcaster SDK Boot ------------------
     window.farcaster = null;
     window.__miniappBridge = {};
 
@@ -62,139 +53,125 @@
       if (window.FarcasterSDK && !window.farcaster) {
         try {
           window.farcaster = new window.FarcasterSDK();
-          console.log("[MiniApp] Farcaster SDK initialized (UMD).");
+          console.log("[MiniApp] Farcaster SDK initialized.");
         } catch (e) {
-          console.error("[MiniApp] Farcaster SDK init error:", e);
+          console.error("[MiniApp] Error initializing Farcaster SDK:", e);
         }
-      } else if (!window.FarcasterSDK) {
-        console.warn("[MiniApp] FarcasterSDK not present on window yet.");
       }
     }
 
     (function waitForSDK() {
       if (window.FarcasterSDK && !window.farcaster) { initMiniAppSDK(); return; }
-      if (!window.farcaster) setTimeout(waitForSDK, 250);
+      setTimeout(waitForSDK, 200);
     })();
 
-    function _callActionSafe(actionName, ...args) {
+    function safeAction(a, ...args) {
       try {
-        const a = window.farcaster?.actions?.[actionName];
-        if (!a) {
-          const msg = `[MiniApp] action ${actionName} not available`;
-          console.warn(msg);
-          return Promise.reject(new Error(msg));
-        }
-        return Promise.resolve(a.apply(window.farcaster.actions, args));
-      } catch (e) {
-        return Promise.reject(e);
+        const fn = window.farcaster?.actions?.[a];
+        if (!fn) return console.warn("[MiniApp] Action not available:", a);
+        return fn.apply(window.farcaster.actions, args);
+      } catch (e) { console.error(e); }
+    }
+
+    window.__miniappBridge.openUrl = u => safeAction("openUrl", u);
+    window.__miniappBridge.getUser = () => safeAction("getUser");
+    window.__miniappBridge.requestUser = () => safeAction("requestUser");
+    window.__miniappBridge.signMessage = m => safeAction("signMessage", m);
+    window.__miniappBridge.requestSession = p => safeAction("requestSession", p);
+    window.__miniappBridge.close = () => safeAction("close");
+    window.__miniappBridge.ready = () => safeAction("ready");
+
+    function sendToUnity(method, payload) {
+      if (!window.unityInstance) return;
+      window.unityInstance.SendMessage("MiniAppManager", method, payload ?? "");
+    }
+
+    (function subscribeWhenReady() {
+      if (window.farcaster?.on) {
+        ["sessionChanged", "userChanged", "navigate", "signComplete"].forEach(ev => {
+          try {
+            window.farcaster.on(ev, data => {
+              sendToUnity("OnMiniAppEvent", JSON.stringify({ event: ev, data }));
+            });
+          } catch (e) {}
+        });
+        return;
       }
-    }
-
-    window.__miniappBridge.openUrl = (url) => _callActionSafe("openUrl", url);
-    window.__miniappBridge.navigate = (path) => _callActionSafe("navigate", path);
-    window.__miniappBridge.getUser = () => _callActionSafe("getUser");
-    window.__miniappBridge.requestUser = () => _callActionSafe("requestUser");
-    window.__miniappBridge.signMessage = (msg) => _callActionSafe("signMessage", msg);
-    window.__miniappBridge.requestSession = (params) => _callActionSafe("requestSession", params);
-    window.__miniappBridge.close = () => _callActionSafe("close");
-    window.__miniappBridge.ready = () => {
-      try { window.farcaster?.actions?.ready?.(); console.log("[MiniApp] ready() called"); } 
-      catch(e){ console.warn("[MiniApp] ready() failed:", e); }
-    };
-
-    function _sendToUnity(method, payload) {
-      try {
-        if (window.unityInstance) window.unityInstance.SendMessage("MiniAppManager", method, payload ?? "");
-        else console.warn("[MiniApp] Unity instance not ready; unable to SendMessage", method, payload);
-      } catch (e) { console.error("[MiniApp] SendMessage error:", e); }
-    }
-
-    function _subscribeToEvents() {
-      if (!window.farcaster || !window.farcaster.on) return;
-      const events = ["sessionChanged","userChanged","navigate","signComplete"];
-      for(const ev of events) {
-        try {
-          window.farcaster.on(ev, (data) => {
-            const payload = JSON.stringify({ event: ev, data: data ?? {} });
-            _sendToUnity("OnMiniAppEvent", payload);
-          });
-        } catch(e){ console.warn("[MiniApp] failed to subscribe event", ev, e); }
-      }
-    }
-
-    (function waitForSubscribe() {
-      if (window.farcaster && window.farcaster.on) { _subscribeToEvents(); return; }
-      setTimeout(waitForSubscribe, 300);
+      setTimeout(subscribeWhenReady, 250);
     })();
   </script>
+
 </head>
-
 <body>
-  <div id="unity-container" class="unity-desktop" style="position:fixed;inset:0;">
-    <canvas id="unity-canvas" tabindex="-1" style="width:100%;height:100%;display:block;"></canvas>
+  <div id="unity-container" class="unity-desktop" style="position:fixed; inset:0;">
+    <canvas id="unity-canvas" tabindex="-1" style="width:100%; height:100%; display:block;"></canvas>
 
-    <div id="unity-loading-bar" style="position:absolute;left:10px;top:10px;z-index:9999;">
+    <div id="unity-loading-bar" style="position:absolute; top:10px; left:10px; z-index:1000;">
       <div id="unity-loading-text">Loading...</div>
-      <div id="unity-progress-bar-empty" style="width:200px;height:8px;background:#333;">
-        <div id="unity-progress-bar-full" style="width:0%;height:100%;background:#0f0;"></div>
+      <div id="unity-progress-bar-empty" style="width:220px; height:8px; background:#333;">
+        <div id="unity-progress-bar-full" style="width:0%; height:100%; background:#4caf50;"></div>
       </div>
       <div id="unity-progress-text">0%</div>
     </div>
 
-    <div id="unity-warning" style="position:absolute;left:10px;bottom:10px;z-index:9999;"></div>
+    <div id="unity-warning" style="position:absolute; bottom:10px; left:10px; z-index:1000;"></div>
   </div>
 
   <script>
     var canvas = document.getElementById("unity-canvas");
     var buildUrl = "Build";
+
     var config = {
-      dataUrl: buildUrl + "/WebGL.data.br",
-      frameworkUrl: buildUrl + "/WebGL.framework.js.br",
-      codeUrl: buildUrl + "/WebGL.wasm.br",
+      dataUrl: buildUrl + "/WebGL.data.unityweb",
+      frameworkUrl: buildUrl + "/WebGL.framework.js.unityweb",
+      codeUrl: buildUrl + "/WebGL.wasm.unityweb",
       streamingAssetsUrl: "StreamingAssets",
       companyName: "DefaultCompany",
       productName: "Basemaze",
       productVersion: "1.0",
-      showBanner: function(msg,type){
-        var wrap = document.getElementById("unity-warning");
+      matchWebGLToCanvasSize: true,
+      showBanner: function (msg, type) {
+        var w = document.getElementById("unity-warning");
         var d = document.createElement("div");
         d.innerText = msg;
-        d.style.padding="8px";
-        d.style.margin="6px";
-        d.style.borderRadius="4px";
-        d.style.background=type==="error"?"rgba(200,30,30,0.95)":"rgba(255,210,0,0.95)";
-        wrap.appendChild(d);
-        if(type!=="error") setTimeout(()=>d.remove(),6000);
-      },
-      matchWebGLToCanvasSize:true
+        d.style.padding = "8px";
+        d.style.margin = "6px";
+        d.style.borderRadius = "4px";
+        d.style.background = type === "error"
+          ? "rgba(200,30,30,0.95)"
+          : "rgba(255,210,0,0.95)";
+        w.appendChild(d);
+        if (type !== "error") setTimeout(() => d.remove(), 6000);
+      }
     };
 
+    // Load Unity loader
     var loaderScript = document.createElement("script");
     loaderScript.src = buildUrl + "/WebGL.loader.js";
     loaderScript.crossOrigin = "anonymous";
 
-    loaderScript.onload = function() {
-      createUnityInstance(canvas, config, function(progress){
-        var pct = Math.floor(progress*100);
-        document.getElementById("unity-progress-bar-full").style.width = pct+"%";
-        document.getElementById("unity-progress-text").textContent = pct+"%";
-      }).then(function(unityInstance){
-        window.unityInstance = unityInstance;
-        document.getElementById("unity-loading-bar").style.display="none";
-        try {
-          if(window.farcaster?.actions?.ready) {
-            window.farcaster.actions.ready();
-            console.log("[MiniApp] farcaster.actions.ready() called after Unity load");
-          }
-        } catch(e){ console.warn("[MiniApp] error calling ready():", e); }
-      }).catch(function(err){
-        console.error("createUnityInstance failed:",err);
-        config.showBanner("Unity failed to initialize: "+String(err),"error");
+    loaderScript.onload = function () {
+      createUnityInstance(canvas, config, function (progress) {
+        var pct = Math.round(progress * 100);
+        document.getElementById("unity-progress-bar-full").style.width = pct + "%";
+        document.getElementById("unity-progress-text").textContent = pct + "%";
+      })
+      .then(function (instance) {
+        window.unityInstance = instance;
+        document.getElementById("unity-loading-bar").style.display = "none";
+        safeAction("ready");
+      })
+      .catch(function (err) {
+        console.error("Unity failed:", err);
+        config.showBanner("Unity failed: " + err, "error");
       });
     };
 
-    loaderScript.onerror = function(){ config.showBanner("Failed to load WebGL.loader.js","error"); };
+    loaderScript.onerror = () =>
+      config.showBanner("Failed to load WebGL.loader.js", "error");
+
     document.body.appendChild(loaderScript);
   </script>
+
 </body>
 </html>

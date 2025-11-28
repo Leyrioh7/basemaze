@@ -12,28 +12,28 @@
 
   "headers": [
     {
-      "source": "/Build/(.*).wasm.br",
+      "source": "/Build/(.*).wasm.unityweb",
       "headers": [
         { "key": "Content-Type", "value": "application/wasm" },
-        { "key": "Content-Encoding", "value": "br" },
+        { "key": "Content-Encoding", "value": "gzip" },
         { "key": "Cross-Origin-Embedder-Policy", "value": "require-corp" },
         { "key": "Cross-Origin-Opener-Policy", "value": "same-origin" }
       ]
     },
     {
-      "source": "/Build/(.*).data.br",
+      "source": "/Build/(.*).data.unityweb",
       "headers": [
         { "key": "Content-Type", "value": "application/octet-stream" },
-        { "key": "Content-Encoding", "value": "br" },
+        { "key": "Content-Encoding", "value": "gzip" },
         { "key": "Cross-Origin-Embedder-Policy", "value": "require-corp" },
         { "key": "Cross-Origin-Opener-Policy", "value": "same-origin" }
       ]
     },
     {
-      "source": "/Build/(.*).framework.js.br",
+      "source": "/Build/(.*).framework.js.unityweb",
       "headers": [
         { "key": "Content-Type", "value": "application/javascript" },
-        { "key": "Content-Encoding", "value": "br" },
+        { "key": "Content-Encoding", "value": "gzip" },
         { "key": "Cross-Origin-Embedder-Policy", "value": "require-corp" },
         { "key": "Cross-Origin-Opener-Policy", "value": "same-origin" }
       ]
