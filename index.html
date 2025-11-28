@@ -94,6 +94,24 @@
   <script>
     var canvas = document.querySelector("#unity-canvas");
 
+    /* FIX — Prevent invalid canvas size (RenderPass error) */
+    function ensureCanvasSize() {
+      canvas.style.width = "100%";
+      canvas.style.height = "100%";
+
+      let w = canvas.clientWidth || 1;
+      let h = canvas.clientHeight || 1;
+
+      if (w > 16384 || h > 16384) {
+        console.warn("Invalid canvas size detected:", w, h, "→ resetting to 1×1");
+        w = 1;
+        h = 1;
+      }
+
+      canvas.width = w;
+      canvas.height = h;
+    }
+
     function unityShowBanner(msg, type) {
       const warningBanner = document.getElementById("unity-warning");
       const div = document.createElement("div");
@@ -126,6 +144,8 @@
     loaderScript.crossOrigin = "anonymous";
 
     loaderScript.onload = () => {
+      ensureCanvasSize();  // ← FIX APPLIED HERE
+
       createUnityInstance(canvas, config, progress => {
         document.getElementById("unity-progress-bar-full").style.width =
           Math.floor(progress * 100) + "%";
