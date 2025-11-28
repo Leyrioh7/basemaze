@@ -144,11 +144,13 @@
     loaderScript.crossOrigin = "anonymous";
 
     loaderScript.onload = () => {
-      ensureCanvasSize();  // ← FIX APPLIED HERE
+      ensureCanvasSize();  // KEEP FIX
 
       createUnityInstance(canvas, config, progress => {
-        document.getElementById("unity-progress-bar-full").style.width =
-          Math.floor(progress * 100) + "%";
+        const pct = Math.floor(progress * 100);
+
+        document.getElementById("unity-progress-bar-full").style.width = pct + "%";
+        document.getElementById("unity-progress-text").textContent = pct + "%";
       })
         .then(unityInstance => {
           window.unityInstance = unityInstance;
