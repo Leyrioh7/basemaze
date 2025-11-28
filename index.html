@@ -96,11 +96,13 @@
 
     /* FIX — Prevent invalid canvas size (RenderPass error) */
     function ensureCanvasSize() {
-      canvas.style.width = "100%";
-      canvas.style.height = "100%";
+      // Set canvas to full viewport size
+      canvas.style.width = "100vw";
+      canvas.style.height = "100vh";
+      canvas.style.display = "block";
 
-      let w = canvas.clientWidth || 1;
-      let h = canvas.clientHeight || 1;
+      let w = window.innerWidth || canvas.clientWidth || 1;
+      let h = window.innerHeight || canvas.clientHeight || 1;
 
       if (w > 16384 || h > 16384) {
         console.warn("Invalid canvas size detected:", w, h, "→ resetting to 1×1");
@@ -111,6 +113,9 @@
       canvas.width = w;
       canvas.height = h;
     }
+
+    // Update canvas size on window resize
+    window.addEventListener('resize', ensureCanvasSize);
 
     function unityShowBanner(msg, type) {
       const warningBanner = document.getElementById("unity-warning");
