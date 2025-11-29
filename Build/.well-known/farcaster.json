@@ -5,7 +5,7 @@
     "signature": "K7IdaWsY15bJAa6E2h545Gzf9C3sdtt1Gg1uk8bPv85CXxk8PzxVPuSO9kHkk+iajlrV85IFRDSAxH+cAb2ntBw="
   },
   "baseBuilder": {
-    "ownerAddress": "0x21BE3Cbd607740926AbA367a7Ff2e0A3Dbb9956e" 
+    "ownerAddress": "0x21BE3Cbd607740926AbA367a7Ff2e0A3Dbb9956e"  
   },
   "miniapp":{
     "name": "Base Maze",
@@ -15,7 +15,7 @@
     "imageUrl": "https://ik.imagekit.io/defidrey/BaseMaze/BsmzPfp.jpg",
     "splashImageUrl": "https://ik.imagekit.io/defidrey/BaseMaze/BsmzPfpp.jpg",
     "splashBackgroundColor": "#0f0b88",
-    "webhookUrl": "https://basemazee.vercel.app/api/webhook",
+    "webhookUrl": "",
     "subtitle": "PacMon on Base",
     "description": "Experience Gaming like no other",
     "screenshotUrls": [

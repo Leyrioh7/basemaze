@@ -15,7 +15,7 @@
     "imageUrl": "https://ik.imagekit.io/defidrey/BaseMaze/BsmzPfp.jpg",
     "splashImageUrl": "https://ik.imagekit.io/defidrey/BaseMaze/BsmzPfpp.jpg",
     "splashBackgroundColor": "#0f0b88",
-    "webhookUrl": "https://basemazee.vercel.app/api/webhook",
+    "webhookUrl": "",
     "subtitle": "PacMon on Base",
     "description": "Experience Gaming like no other",
     "screenshotUrls": [
