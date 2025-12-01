@@ -1,11 +1,11 @@
 {
 "accountAssociation": {
-    "header": "eyJmaWQiOjExNTY0NjEsInR5cGUiOiJhdXRoIiwia2V5IjoiMHg4NWYzNzU4YzdhMjJkYWVGYjUxMDUzNEU3NEZjZWQwOThBODZjNzU4In0",
+    "header": "eyJmaWQiOjExNTY0NjEsInR5cGUiOiJjdXN0b2R5Iiwia2V5IjoiMHhBNUZGOURDNTQyNDY1OTFhMzNlMmNmMTIyZDg3NjgzZjdGN2JBZjMyIn0",
     "payload": "eyJkb21haW4iOiJiYXNlbWF6ZXR0LnZlcmNlbC5hcHAifQ",
-    "signature": "xIGGgghqYh5ggrQgaHlAtPRAni8qEGbopQNEtsMj6s97bRqF6poVb0mx+DXI7VMxmgWow+gm7sqpU37HPYUjOxw="
+    "signature": "K7IdaWsY15bJAa6E2h545Gzf9C3sdtt1Gg1uk8bPv85CXxk8PzxVPuSO9kHkk+iajlrV85IFRDSAxH+cAb2ntBw="
   },
   "baseBuilder": {
-    "ownerAddress": "0xa5ff9dc54246591a33e2cf122d87683f7f7baf32"  
+    "ownerAddress": "0x21BE3Cbd607740926AbA367a7Ff2e0A3Dbb9956e" 
   },
   "miniapp":{
     "name": "Base Maze",
@@ -15,7 +15,7 @@
     "imageUrl": "https://ik.imagekit.io/defidrey/BaseMaze/BsmzPfp.jpg",
     "splashImageUrl": "https://ik.imagekit.io/defidrey/BaseMaze/BsmzPfpp.jpg",
     "splashBackgroundColor": "#0f0b88",
-    "webhookUrl": "",
+    "webhookUrl": "https://api.neynar.com/f/app/92192b75-2522-4554-9b4e-f5f274442bfa/event",
     "subtitle": "PacMon on Base",
     "description": "Experience Gaming like no other",
     "screenshotUrls": [
