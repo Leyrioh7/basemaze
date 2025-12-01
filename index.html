@@ -96,7 +96,6 @@
 
     /* FIX — Prevent invalid canvas size (RenderPass error) */
     function ensureCanvasSize() {
-      // Set canvas to full viewport size
       canvas.style.width = "100vw";
       canvas.style.height = "100vh";
       canvas.style.display = "block";
@@ -149,19 +148,16 @@
     loaderScript.crossOrigin = "anonymous";
 
     loaderScript.onload = () => {
-      ensureCanvasSize();  // KEEP FIX
+      ensureCanvasSize();
 
       createUnityInstance(canvas, config, progress => {
         const pct = Math.floor(progress * 100);
-
         document.getElementById("unity-progress-bar-full").style.width = pct + "%";
         document.getElementById("unity-progress-text").textContent = pct + "%";
       })
         .then(unityInstance => {
           window.unityInstance = unityInstance;
           document.getElementById("unity-loading-bar").style.display = "none";
-
-          // Unity is fully loaded → notify Farcaster
           sendFarcasterReady();
         })
         .catch(err => {
@@ -174,6 +170,23 @@
     };
 
     document.body.appendChild(loaderScript);
+  </script>
+
+  <!-- INSERTED NEYNAR API CALL-->
+  <script>
+    async function getNeynarCast(castHash) {
+      try {
+        const response = await fetch(`/api/neynar?castHash=${castHash}`);
+        const data = await response.json();
+        console.log("Neynar response:", data);
+        return data;
+      } catch (err) {
+        console.error("Neynar API error:", err);
+      }
+    }
+
+    // Optional: example call
+    // getNeynarCast("0x123...");
   </script>
 
 </body>
