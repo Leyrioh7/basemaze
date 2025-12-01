@@ -42,7 +42,7 @@
   <link rel="preload" href="Build/WebGL.wasm.unityweb" as="fetch" crossorigin>
 
   <!-- Farcaster Miniapp SDK (UMD version) -->
-  <script src="https://miniapps.farcaster.xyz/sdk.umd.js"></script>
+  <script src="https://miniapps.farcaster.xyz/sdk.umd.js"> </script>
 
   <script>
     // Initialize Farcaster SDK
@@ -188,6 +188,25 @@
     // Optional: example call
     // getNeynarCast("0x123...");
   </script>
+  <script>
+async function getUserFromFrameContext() {
+  // Wait for Warpcast parent frame to send context
+  window.addEventListener("message", async (event) => {
+    if (!event.data || !event.data.untrustedData) return;
+
+    const fid = event.data.untrustedData.fid;
+
+    // Call your neynar backend route to resolve wallet + user info
+    const res = await fetch(`/api/neynar/user-by-fid?fid=${fid}`);
+    const user = await res.json();
+
+    console.log("Detected User:", user);
+    console.log("Associated Wallet:", user?.wallet_address);
+  });
+}
+getUserFromFrameContext();
+</script>
+
 
 </body>
 
