@@ -1,17 +1,19 @@
-// TemplateData/ready.js
-window.addEventListener("DOMContentLoaded", () => {
+// TemplateData/ready.js (or Build/ready.js)
+// DO NOT auto-call ready() early — Unity is not loaded yet
+
+window.farcasterReady = () => {
   try {
-    if (typeof window.farcasterReady === "function") {
-      window.farcasterReady();
-      console.log("ready.js called window.farcasterReady()");
-    } else if (window.farcasterSDK?.actions?.ready) {
+    if (window.farcasterSDK?.actions?.ready) {
       window.farcasterSDK.actions.ready();
-      window.farcasterSDK.readySent = true;
-      console.log("ready.js fallback: called SDK ready()");
+      console.log("[Farcaster] ready() sent from farcasterReady()");
     } else {
-      console.warn("Farcaster ready not available yet");
+      console.warn("[Farcaster] SDK not ready yet");
     }
-  } catch (e) {
-    console.error("ready.js error:", e);
+  } catch (err) {
+    console.error("Farcaster ready() error:", err);
   }
+};
+
+window.addEventListener("DOMContentLoaded", () => {
+  console.log("ready.js loaded — waiting for Unity to finish...");
 });
